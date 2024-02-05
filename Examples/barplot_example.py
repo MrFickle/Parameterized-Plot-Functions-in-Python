@@ -1,4 +1,4 @@
-import plot_functions_reformed as plotfuns
+import parameterized_plot_functions as plotfuns
 import numpy as np
 from importlib import reload
 
@@ -11,7 +11,7 @@ ylabel = 'Height'
 figure_title = 'Random Bars'
 # Define output path and filename for saving the plot
 data_path_out = r'D:\Downloads\Temp2'
-filename = 'test_hist'
+filename = 'test_bar'
 # Specify colors for each bar and legend entries
 color_dict_bars = {'Bar1': 'blue', 'Bar2': 'red', 'Bar3': 'green', 'Bar4': 'pink'}
 color_dict_legends = {'Legend1': 'purple', 'Legend2': '#EEEEEE'}

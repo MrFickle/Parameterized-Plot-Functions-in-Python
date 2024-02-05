@@ -1,4 +1,4 @@
-import plot_functions_reformed as plotfuns
+import parameterized_plot_functions as plotfuns
 import numpy as np
 from importlib import reload
 
@@ -13,7 +13,7 @@ ylabel = 'Y'
 figure_title = 'Random Distributions'
 # Output directory and filename for saving the plot
 data_path_out = r'D:\Downloads\Temp2'
-filename = 'test_hist'
+filename = 'test_scatter'
 # Set limits for the X and Y axes to define the plot boundaries
 xlims = [0, 1.1]
 ylims = [0, 4.4]
