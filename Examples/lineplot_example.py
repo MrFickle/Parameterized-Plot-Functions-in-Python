@@ -1,4 +1,4 @@
-import plot_functions_reformed as plotfuns
+import parameterized_plot_functions as plotfuns
 import numpy as np
 from importlib import reload
 
@@ -12,7 +12,7 @@ ylabel = 'Y'
 figure_title = 'Random Distributions'
 # Set the output path and filename for the plot
 data_path_out = r'D:\Downloads\Temp2'
-filename = 'test_hist'
+filename = 'test_line'
 # Provide a dictionary for line colors and legend names
 color_dictionary = {'Dist1': 'red', 'Dist2': 'blue'}
 legend_dictionary = {'Dist1': 'Line 1', 'Dist2': 'Line 2'}

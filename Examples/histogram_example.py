@@ -1,4 +1,4 @@
-import plot_functions_reformed as plotfuns
+import parameterized_plot_functions as plotfuns
 import numpy as np
 from importlib import reload
 
