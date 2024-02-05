@@ -54,5 +54,5 @@ git clone https://github.com/MrFickle/Parameterized-Plot-Functions-in-Python.git
 Contributions to improve or extend the functionality of these plotting utilities are welcome. Please feel free to fork 
 the repository, make your changes, and submit a pull request.
 
-## Licence
-This project is licensed under the [MIT License](LICENCE)
+## License
+This project is licensed under the [MIT License](LICENSE)
