@@ -18,7 +18,7 @@ from sklearn.metrics import r2_score
 import diptest
 import matplotlib.gridspec as gridspec
 
-plt.rcParams["font.family"] = "Arial"
+# plt.rcParams["font.family"] = "Arial"
 
 
 def add_color_bar(fig, ax, colormap, label, loc, ticks, tick_labels, orientation, font_size, label_size):
