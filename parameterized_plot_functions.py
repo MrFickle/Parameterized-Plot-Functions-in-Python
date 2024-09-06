@@ -5,7 +5,7 @@ This script contains functions that are used only for plotting data.
 # Modules
 import matplotlib
 
-matplotlib.use('Agg')
+# matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import matplotlib.lines as mlines
 import numpy as np
