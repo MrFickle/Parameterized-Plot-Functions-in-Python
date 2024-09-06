@@ -126,7 +126,7 @@ def plot_parameterized_hist(data_dictionary, bins, xlabel, ylabel, figure_title,
                             place_text=None, place_text_loc=None, place_text_color=None, place_text_font_size=None,
                             rotate_place_text=None,
                             make_text_bold=False, pad=0.25, handletextpad=1, save_svg=True,
-                            set_ylims_one_extra_tick=False, remove_first_y=False, return_fig_instead_of_save=False):
+                            set_ylims_one_extra_tick=False, remove_first_y=False, return_fig_instead_of_save=False, show_figure=False):
     """
     Generate a parameterized histogram plot for given distributions.
 
@@ -172,6 +172,7 @@ def plot_parameterized_hist(data_dictionary, bins, xlabel, ylabel, figure_title,
     - set_ylims_one_extra_tick (bool, optional): Whether to expand the y-axis limits by one extra tick (default is False).
     - remove_first_y (bool, optional): Whether to remove the first tick on the y-axis to prevent overlap with the x-axis (default is False).
     - return_fig_instead_of_save (bool, optional): If True, returns the figure object instead of saving (default is False).
+    - show_figure (bool, optional): If True, the figure is shown, otherwise it is closed.
 
     Returns
     -------
@@ -252,7 +253,10 @@ def plot_parameterized_hist(data_dictionary, bins, xlabel, ylabel, figure_title,
     if not return_fig_instead_of_save:
         save_figure(fig, data_path_out, filename, save_svg)
 
-    plt.close(fig)
+    if show_figure:
+        plt.show()
+    else:
+        plt.close(fig)
     return fig if return_fig_instead_of_save else None
 
 
