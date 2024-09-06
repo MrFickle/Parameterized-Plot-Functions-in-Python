@@ -279,7 +279,7 @@ def plot_parameterized_lineplot(data_dictionary_x, data_dictionary_y, xlabel, yl
                                 colorbar_orientation='vertical', legend_line_length=1, use_line_color_for_error=False,
                                 pad_ticks=True, pad_labels=True, ncol=1, handletextpad=1, bbox_to_anchor=None,
                                 font_size=90, legend_lw_multiplier=3, use_line_color_for_legends=False,
-                                return_fig_instead_of_save=False):
+                                return_fig_instead_of_save=False, show_figure=False):
     """
     Creates and optionally saves a parameterized line plot based on provided data, customization options, and plot settings.
 
@@ -356,6 +356,7 @@ def plot_parameterized_lineplot(data_dictionary_x, data_dictionary_y, xlabel, yl
     - legend_lw_multiplier (int, optional): Multiplier for the linewidth in the legend.
     - use_line_color_for_legends (bool, optional): If True, legend text matches line color.
     - return_fig_instead_of_save (bool, optional): If True, returns the figure instance; otherwise, saves the plot.
+    - show_figure (bool, optional): If True, the figure is shown, otherwise it is closed.
 
     Returns:
     ----------
@@ -431,12 +432,15 @@ def plot_parameterized_lineplot(data_dictionary_x, data_dictionary_y, xlabel, yl
     ax.set_title(figure_title, fontsize=fs_dict['title'], fontweight='bold')
     fig.tight_layout(pad=pad)
 
-    if return_fig_instead_of_save:
-        return fig
-    else:
+    # Saving logic
+    if not return_fig_instead_of_save:
         save_figure(fig, data_path_out, filename, save_svg)
-        plt.close(fig)
 
+    if show_figure:
+        plt.show()
+    else:
+        plt.close(fig)
+    return fig if return_fig_instead_of_save else None
 
 def parameterized_scatterplot(data_dictionary_x, data_dictionary_y, xlabel, ylabel, figure_title,
                               data_path_out, filename, xlims=None, ylims=None, color_dictionary=None,
@@ -453,7 +457,7 @@ def parameterized_scatterplot(data_dictionary_x, data_dictionary_y, xlabel, ylab
                               plot_vertical_line=False, vertical_line_x=[0], vertical_line_color=['black'],
                               vertical_line_ls=['dashed'], vertical_line_lw=[4], spine_width=7,
                               ncol=1, handletextpad=0.8, m_linewidth=1, tick_width=4, tick_length=16,
-                              return_fig_instead_of_save=False):
+                              return_fig_instead_of_save=False, show_figure=False):
     """
     Creates and optionally saves a parameterized scatter plot based on provided data,
     customization options, and plot settings.
@@ -518,6 +522,7 @@ def parameterized_scatterplot(data_dictionary_x, data_dictionary_y, xlabel, ylab
     - m_linewidth (float, optional): Line width for connecting markers in each distribution.
     - tick_width, tick_length (float, optional): Width and length of axis ticks.
     - return_fig_instead_of_save (bool, optional): If True, returns figure object instead of saving.
+    - show_figure (bool, optional): If True, the figure is shown, otherwise it is closed.
 
     Returns:
     ----------
@@ -587,12 +592,15 @@ def parameterized_scatterplot(data_dictionary_x, data_dictionary_y, xlabel, ylab
     # Adjusting layout
     fig.tight_layout(pad=pad)
 
-    # Save or return the figure
-    if return_fig_instead_of_save:
-        return fig
-    else:
+    # Saving logic
+    if not return_fig_instead_of_save:
         save_figure(fig, data_path_out, filename, save_svg)
+
+    if show_figure:
+        plt.show()
+    else:
         plt.close(fig)
+    return fig if return_fig_instead_of_save else None
 
 
 def plot_parameterized_barplot(data_dictionary, xlabel, ylabel, figure_title, data_path_out, filename,
@@ -609,7 +617,7 @@ def plot_parameterized_barplot(data_dictionary, xlabel, ylabel, figure_title, da
                                rotate_place_text=None, make_text_bold=False, use_sns=True, disable_xtick_edges=False,
                                bbox_to_anchor=None, make_legend_patch_visible=True,
                                handletextpad=0.5, tick_width=1, tick_length=5,
-                               return_fig_instead_of_save=False):
+                               return_fig_instead_of_save=False, show_figure=False):
     """
     Creates and optionally saves a parameterized bar plot based on provided data,
     customization options, and plot settings.
@@ -666,6 +674,7 @@ def plot_parameterized_barplot(data_dictionary, xlabel, ylabel, figure_title, da
     - handletextpad (float, optional): Padding between legend text and the patch (color square).
     - tick_width, tick_length (int, optional): Width and length of the ticks on both axes.
     - return_fig_instead_of_save (bool, optional): If True, returns figure object instead of saving.
+    - show_figure (bool, optional): If True, the figure is shown, otherwise it is closed.
 
     Returns:
     ----------
@@ -742,10 +751,13 @@ def plot_parameterized_barplot(data_dictionary, xlabel, ylabel, figure_title, da
     # Adjust the layout of the plot to fit within the figure area.
     fig.tight_layout(pad=pad)
 
-    # Save the figure to the specified path or return the figure object.
-    if return_fig_instead_of_save:
-        return fig
-    else:
+    # Saving logic
+    if not return_fig_instead_of_save:
         save_figure(fig, data_path_out, filename, save_svg)
-        plt.close()
+
+    if show_figure:
+        plt.show()
+    else:
+        plt.close(fig)
+    return fig if return_fig_instead_of_save else None
 
