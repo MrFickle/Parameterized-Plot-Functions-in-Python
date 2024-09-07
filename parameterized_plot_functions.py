@@ -56,8 +56,8 @@ def create_patch_legend(ax, patches, legend_loc, ncol, handletextpad, font_size,
 def customize_axes(ax, xlabel, ylabel, xticks_values, yticks_values, xticks_labels, yticks_labels, xlims, ylims,
                    fs_dict, tick_width, tick_length, spine_width, pad_labels, pad_ticks, use_log_scale):
     """Customize axes with labels, ticks, limits, and log scale if needed."""
-    ax.set_xlabel(xlabel, fontsize=fs_dict['xlabel'], labelpad=20, fontweight='bold')
-    ax.set_ylabel(ylabel, fontsize=fs_dict['ylabel'], labelpad=20, fontweight='bold')
+    ax.set_xlabel(xlabel, fontsize=fs_dict['xlabel'], labelpad=pad_labels, fontweight='bold')
+    ax.set_ylabel(ylabel, fontsize=fs_dict['ylabel'], labelpad=pad_labels, fontweight='bold')
     ax.set_xlim(xlims) if xlims is not None else None
     ax.set_ylim(ylims) if ylims is not None else None
     if xticks_values is not None:
@@ -71,7 +71,7 @@ def customize_axes(ax, xlabel, ylabel, xticks_values, yticks_values, xticks_labe
     if use_log_scale:
         ax.set_xscale('log')
         ax.set_yscale('log')
-    ax.tick_params(axis='x', which='major', width=tick_width, length=tick_length, labelsize=fs_dict['xticks'], pad=pad_labels)
+    ax.tick_params(axis='x', which='major', width=tick_width, length=tick_length, labelsize=fs_dict['xticks'], pad=pad_ticks)
     ax.tick_params(axis='y', which='major', width=tick_width, length=tick_length, labelsize=fs_dict['yticks'], pad=pad_ticks)
     for spine in ax.spines.values():
         spine.set_linewidth(spine_width)
@@ -122,10 +122,9 @@ def plot_parameterized_hist(data_dictionary, bins, xlabel, ylabel, figure_title,
                             plot_vertical_th_line=None, legend_dictionary=None, plot_legend=True,
                             legend_loc='upper right', ncol=2, plot_kde=False, perform_dip_test=False,
                             plot_mean=False, plot_std=False, mean_round_decimal=2, std_round_decimal=2,
-                            figure_size=(25, 25), font_size=115, label_size=100,
-                            place_text=None, place_text_loc=None, place_text_color=None, place_text_font_size=None,
-                            rotate_place_text=None,
-                            make_text_bold=False, pad=0.25, handletextpad=1, save_svg=True,
+                            figure_size=(25, 25), font_size=115, label_size=100, tick_width=4, tick_length=16, spine_width=7,
+                            pad_ticks=20, pad_labels=20, use_log_scale=False, place_text=None, place_text_loc=None, place_text_color=None,
+                            place_text_font_size=None, rotate_place_text=None, make_text_bold=False, pad=0.25, handletextpad=1, save_svg=True,
                             set_ylims_one_extra_tick=False, remove_first_y=False, return_fig_instead_of_save=False, show_figure=False):
     """
     Generate a parameterized histogram plot for given distributions.
@@ -160,6 +159,11 @@ def plot_parameterized_hist(data_dictionary, bins, xlabel, ylabel, figure_title,
     - figure_size (tuple, optional): The size of the figure (width, height) (default is (25, 25)).
     - font_size (int, optional): The font size for labels, title, and legend (default is 115).
     - label_size (int, optional): The font size for x and y ticks (default is 100).
+    - tick_width (int, optional): Width of axis ticks.
+    - tick_length (int, optional): Length of axis ticks.
+    - spine_width (int, optional): Width of the axis spines.
+    - pad_ticks (float, optional): If set, pads the axis ticks by set amount.
+    - pad_labels (float, optional): If set, pads the axis ticks by set amount.
     - place_text (list, optional): Strings of text to annotate on the image ['text1', 'text2'].
     - place_text_loc (list, optional): Locations for each annotated text [[x1, y1], [x2, y2]].
     - place_text_color (list, optional): Colors for each annotated text ['color1', 'color2'].
@@ -183,6 +187,9 @@ def plot_parameterized_hist(data_dictionary, bins, xlabel, ylabel, figure_title,
     fig, ax = plt.subplots(figsize=figure_size)
     sns.set(font_scale=5.0, style='ticks')
 
+    # Prepare the font size dictionary for axis customization
+    fs_dict = {'xlabel': font_size, 'ylabel': font_size, 'xticks': label_size, 'yticks': label_size}
+
     # Patches for legend
     patches = []
     # Plot each distribution
@@ -200,11 +207,11 @@ def plot_parameterized_hist(data_dictionary, bins, xlabel, ylabel, figure_title,
             legend_suffix += f', Dip test p-value: {round(pval, 3)}'
 
         if plot_mean:
-            data_mean = round(np.mean(data_dist), mean_round_decimal)
-            legend_suffix += f', μ: {data_mean}'
+            data_mean = np.round(np.nanmean(data_dist), mean_round_decimal)
+            legend_suffix += f', μ: {data_mean:.{mean_round_decimal}f}'
         if plot_std:
-            data_std = round(np.std(data_dist, ddof=1), std_round_decimal)
-            legend_suffix += f', σ: {data_std}'
+            data_std = np.round(np.nanstd(data_dist, ddof=1), std_round_decimal)
+            legend_suffix += f', σ: {data_std:.{std_round_decimal}f}'
 
         legend_name = legend_dictionary.get(dist_name, dist_name) + legend_suffix
         patches.append(mpatches.Patch(color=color, label=legend_name))
@@ -214,29 +221,15 @@ def plot_parameterized_hist(data_dictionary, bins, xlabel, ylabel, figure_title,
         for th in plot_vertical_th_line:
             ax.axvline(x=th, color='black', linewidth=5, linestyle='dashed')
 
-    ax.set_xlabel(xlabel, fontweight='bold', labelpad=20, fontsize=font_size)
-    ax.set_ylabel(ylabel, fontweight='bold', labelpad=20, fontsize=font_size)
-    ax.tick_params(axis='both', labelsize=label_size, width=5, length=20, direction='out', pad=15)
-    ax.spines['right'].set_visible(False)
-    ax.spines['top'].set_visible(False)
-    [spine.set_linewidth(7) for spine in ax.spines.values()]
+    # Customize axes
+    customize_axes(ax, xlabel, ylabel, xticks, yticks, None, None, xlims, ylims,
+                   fs_dict, tick_width, tick_length, spine_width, pad_labels, pad_ticks, use_log_scale)
 
-    if xlims is not None:
-        ax.set_xlim(xlims)
-    if ylims is not None:
-        ax.set_ylim(ylims)
-    if xticks is not None:
-        ax.set_xticks(xticks)
-    if yticks is not None:
-        ax.set_yticks(yticks)
     if set_ylims_one_extra_tick:
         extend_y_axis(ax)
 
     if remove_first_y:
         ax.yaxis.get_major_ticks()[0].set_visible(False)
-
-    labels = ax.get_xticklabels() + ax.get_yticklabels()
-    [label.set_fontweight('bold') for label in labels]
 
     if plot_legend:
         create_patch_legend(ax, patches, legend_loc, ncol, handletextpad, font_size)
@@ -260,7 +253,6 @@ def plot_parameterized_hist(data_dictionary, bins, xlabel, ylabel, figure_title,
     return fig if return_fig_instead_of_save else None
 
 
-
 def plot_parameterized_lineplot(data_dictionary_x, data_dictionary_y, xlabel, ylabel, figure_title,
                                 data_path_out, filename, color_dictionary=None, legend_dictionary=None,
                                 lw_dict=None, ls_dict=None, fs_dict=None, m_dict=None, ms_dict=None,
@@ -277,7 +269,7 @@ def plot_parameterized_lineplot(data_dictionary_x, data_dictionary_y, xlabel, yl
                                 horizontal_line_lw=4, add_colorbar=False, colorbar_colormap=None, colorbar_label=None,
                                 colorbar_loc='right', colorbar_ticks=None, colorbar_tick_labels=None,
                                 colorbar_orientation='vertical', legend_line_length=1, use_line_color_for_error=False,
-                                pad_ticks=True, pad_labels=True, ncol=1, handletextpad=1, bbox_to_anchor=None,
+                                pad_ticks=20, pad_labels=20, ncol=1, handletextpad=1, bbox_to_anchor=None,
                                 font_size=90, legend_lw_multiplier=3, use_line_color_for_legends=False,
                                 return_fig_instead_of_save=False, show_figure=False):
     """
@@ -347,8 +339,8 @@ def plot_parameterized_lineplot(data_dictionary_x, data_dictionary_y, xlabel, yl
     - colorbar_orientation (str, optional): Orientation of the colorbar ('vertical' or 'horizontal').
     - legend_line_length (int, optional): Length of the lines in the legend.
     - use_line_color_for_error (bool, optional): If True, error bars use line color.
-    - pad_ticks (bool, optional): If True, pads the axis ticks.
-    - pad_labels (bool, optional): If True, pads the axis labels.
+    - pad_ticks (float, optional): If set, pads the axis ticks by set amount.
+    - pad_labels (float, optional): If set, pads the axis labels by set amount.
     - ncol (int, optional): Number of columns in the legend.
     - handletextpad (float, optional): Padding between legend text and its line.
     - bbox_to_anchor (tuple, optional): Location for the legend's bounding box anchor.
