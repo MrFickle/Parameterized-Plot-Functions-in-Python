@@ -50,7 +50,7 @@ def create_patch_legend(ax, patches, legend_loc, ncol, handletextpad, font_size,
     for patch in legend.get_patches():
         patch.set_height(0.75 * font_size)
         patch.set_width(0.75 * font_size)
-        patch.set_x(-font_size / 4)
+        patch.set_x(-0.75 * font_size / 4)
 
 
 def customize_axes(ax, xlabel, ylabel, xticks_values, yticks_values, xticks_labels, yticks_labels, xlims, ylims,
