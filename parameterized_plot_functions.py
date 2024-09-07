@@ -45,12 +45,19 @@ def create_line_legend(ax, legend_dictionary, color_dictionary, lw_dict, ls_dict
 
 def create_patch_legend(ax, patches, legend_loc, ncol, handletextpad, font_size, bbox_to_anchor=None):
     legend = ax.legend(handles=patches, handlelength=1, frameon=False, loc=legend_loc, ncol=ncol,
-                       handletextpad=handletextpad, bbox_to_anchor=bbox_to_anchor)
+                       handletextpad=handletextpad, bbox_to_anchor=bbox_to_anchor, labelspacing=0.5)
     plt.setp(ax.get_legend().get_texts(), fontsize=font_size, fontweight='bold')
     for patch in legend.get_patches():
-        patch.set_height(0.75 * font_size)
-        patch.set_width(0.75 * font_size)
-        patch.set_x(-0.75 * font_size / 4)
+        # Use font size as a basis, but add flexibility with better scaling factors
+        patch_height = 0.6 * font_size  # A good height relative to the font size
+        patch_width = 1.0 * patch_height  # Make the patch width equal to the height for a square patch
+
+        # Set the patch height and width
+        patch.set_height(patch_height)
+        patch.set_width(patch_width)
+
+        # Adjust x position to align the patch nicely with the text (scaling based on the patch width)
+        patch.set_x(-patch_width / 2)
 
 
 def customize_axes(ax, xlabel, ylabel, xticks_values, yticks_values, xticks_labels, yticks_labels, xlims, ylims,
