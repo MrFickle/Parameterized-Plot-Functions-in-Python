@@ -2,27 +2,43 @@
 This script contains functions that are used only for plotting data.
 """
 
-# Modules
-import matplotlib
+import os
 
+import matplotlib
 # matplotlib.use('Agg')
-import matplotlib.pyplot as plt
+# plt.rcParams["font.family"] = "Arial"
+import matplotlib.gridspec as gridspec
 import matplotlib.lines as mlines
+import matplotlib.patches as mpatches
+import matplotlib.pyplot as plt
+from matplotlib.ticker import AutoMinorLocator
+
 import numpy as np
 import seaborn as sns
-import matplotlib.patches as mpatches
-import os
-from matplotlib.ticker import (AutoMinorLocator)
+import diptest
 from sklearn.linear_model import LinearRegression
 from sklearn.metrics import r2_score
-import diptest
-import matplotlib.gridspec as gridspec
 
 # plt.rcParams["font.family"] = "Arial"
 
 
 def add_color_bar(fig, ax, colormap, label, loc, ticks, tick_labels, orientation, font_size, label_size):
-    """Add a colorbar to the plot with customized settings."""
+    """
+    Add a colorbar to the plot with customized settings.
+
+    Parameters:
+    ----------
+    - fig (matplotlib.figure.Figure): The figure object.
+    - ax (matplotlib.axes.Axes): The axes to attach the colorbar to.
+    - colormap (str or Colormap): The colormap to use.
+    - label (str): The label for the colorbar.
+    - loc (str): The location of the colorbar (e.g., 'right', 'left').
+    - ticks (list): The tick values for the colorbar.
+    - tick_labels (list): The labels corresponding to the ticks.
+    - orientation (str): The orientation of the colorbar ('vertical' or 'horizontal').
+    - font_size (int): The font size for the colorbar label.
+    - label_size (int): The font size for the tick labels.
+    """
     sm = plt.cm.ScalarMappable(cmap=colormap)
     sm.set_array([])
     cbar = fig.colorbar(sm, ax=ax, orientation=orientation, location=loc, label=label, ticks=ticks)
@@ -33,7 +49,23 @@ def add_color_bar(fig, ax, colormap, label, loc, ticks, tick_labels, orientation
 def create_line_legend(ax, legend_dictionary, color_dictionary, lw_dict, ls_dict, m_dict, ms_dict,
                        show_lines, legend_loc, ncol, handletextpad, legend_line_length, bbox_to_anchor, font_size,
                        legend_lw_multiplier, use_line_color_for_legends):
-    """Create a custom legend based on the plot parameters."""
+    """
+    Create a custom legend for line plots based on the plot parameters.
+
+    Parameters:
+    ----------
+    - ax (matplotlib.axes.Axes): The axes to draw the legend on.
+    - legend_dictionary, color_dictionary, lw_dict, ls_dict, m_dict, ms_dict (dict): Dictionaries containing legend, color, linewidth, linestyle, marker style, and marker size mappings for each line.
+    - show_lines (bool): Visibility toggle for lines in legend.
+    - legend_loc (str): Legend location.
+    - ncol (int): Number of legend columns.
+    - handletextpad (float): Padding between line and text.
+    - legend_line_length (int): Length of legend line.
+    - bbox_to_anchor (tuple): Anchor coordinates for legend bounding box.
+    - font_size (int): Font size for legend text.
+    - legend_lw_multiplier (float): Multiplier for linewidths in the legend.
+    - use_line_color_for_legends (bool): Matches text label color to line color.
+    """
     handles = [mlines.Line2D([], [], color=color_dictionary[key], marker=m_dict.get(key, None),
                              markersize=ms_dict.get(key, 5), linestyle=ls_dict.get(key, '-'),
                              linewidth=lw_dict.get(key, 2) * legend_lw_multiplier, label=legend_name,
@@ -44,6 +76,19 @@ def create_line_legend(ax, legend_dictionary, color_dictionary, lw_dict, ls_dict
 
 
 def create_patch_legend(ax, patches, legend_loc, ncol, handletextpad, font_size, bbox_to_anchor=None):
+    """
+    Create a custom legend for patches, dynamically adjusting size based on font.
+
+    Parameters
+    ----------
+    - ax (matplotlib.axes.Axes): The axes to draw the legend on.
+    - patches (list): A list of matplotlib.patches.Patch objects to include in the legend.
+    - legend_loc (str): The location of the legend.
+    - ncol (int): The number of columns for the legend.
+    - handletextpad (float): The padding between the patch and the text.
+    - font_size (int): The font size for the legend text.
+    - bbox_to_anchor (tuple, optional): The bounding box anchor for the legend placement.
+    """
     legend = ax.legend(handles=patches, handlelength=1, frameon=False, loc=legend_loc, ncol=ncol,
                        handletextpad=handletextpad, bbox_to_anchor=bbox_to_anchor, labelspacing=font_size/100)
     plt.setp(ax.get_legend().get_texts(), fontsize=font_size, fontweight='bold')
@@ -62,7 +107,21 @@ def create_patch_legend(ax, patches, legend_loc, ncol, handletextpad, font_size,
 
 def customize_axes(ax, xlabel, ylabel, xticks_values, yticks_values, xticks_labels, yticks_labels, xlims, ylims,
                    fs_dict, tick_width, tick_length, spine_width, pad_labels, pad_ticks, use_log_scale):
-    """Customize axes with labels, ticks, limits, and log scale if needed."""
+    """
+    Customize axes labels, ticks, limits, and apply log scale if needed.
+
+    Parameters:
+    ----------
+    - ax (matplotlib.axes.Axes): The target axes.
+    - xlabel, ylabel (str): X and Y axis labels.
+    - xticks_values, yticks_values (list): Values for X and Y ticks.
+    - xticks_labels, yticks_labels (list): Custom labels for X and Y ticks.
+    - xlims, ylims (list): Minimum and maximum limits for axes.
+    - fs_dict (dict): Font size map for 'xlabel', 'ylabel', 'xticks', 'yticks'.
+    - tick_width, tick_length, spine_width (float): Styling widths.
+    - pad_labels, pad_ticks (float): Padding sizes.
+    - use_log_scale (bool): Toggles log scale.
+    """
     ax.set_xlabel(xlabel, fontsize=fs_dict['xlabel'], labelpad=pad_labels, fontweight='bold')
     ax.set_ylabel(ylabel, fontsize=fs_dict['ylabel'], labelpad=pad_labels, fontweight='bold')
     ax.set_xlim(xlims) if xlims is not None else None
@@ -96,7 +155,19 @@ def extend_y_axis(ax):
 
 
 def annotate_text(ax, texts, locations, font_sizes, bold, colors, rotate_place_text):
-    """Annotate text on the plot."""
+    """
+    Annotate text elements directly onto axes.
+
+    Parameters:
+    ----------
+    - ax (matplotlib.axes.Axes): Axes to write text on.
+    - texts (str or list): Text content to display.
+    - locations (tuple or list): Text positional vectors (fractional relative to axes).
+    - font_sizes (int or list): Font sizing per annotation.
+    - bold (bool): Makes text bold.
+    - colors (str or list): Annotation text colors.
+    - rotate_place_text (bool or list): Determines rotation per text annotation.
+    """
     if isinstance(texts, list):
         for text, loc, font_size, color, rotation in zip(texts, locations, font_sizes, colors, rotate_place_text):
             ax.annotate(text, xy=loc, xycoords='axes fraction', fontsize=font_size,
@@ -109,7 +180,16 @@ def annotate_text(ax, texts, locations, font_sizes, bold, colors, rotate_place_t
 
 
 def save_figure(fig, data_path_out, filename, save_svg):
-    """Save the figure to disk."""
+    """
+    Save the generated figure to disk.
+
+    Parameters:
+    ----------
+    - fig (matplotlib.figure.Figure): Figure object to capture.
+    - data_path_out (str): Path of destination directory.
+    - filename (str): Output filename.
+    - save_svg (bool): Whether to create an SVG copy inside an `<data_path_out>/SVG/` folder alongside PNG.
+    """
     if data_path_out and filename:
         if not os.path.exists(data_path_out):
             os.makedirs(data_path_out)
@@ -441,7 +521,7 @@ def plot_parameterized_lineplot(data_dictionary_x, data_dictionary_y, xlabel, yl
         plt.close(fig)
     return fig if return_fig_instead_of_save else None
 
-def parameterized_scatterplot(data_dictionary_x, data_dictionary_y, xlabel, ylabel, figure_title,
+def plot_parameterized_scatterplot(data_dictionary_x, data_dictionary_y, xlabel, ylabel, figure_title,
                               data_path_out, filename, xlims=None, ylims=None, color_dictionary=None,
                               alpha=None, legend_dictionary=None, font_size=90, label_size=80, m_dict=None,
                               ms_dict=None, figure_size=(25, 25), xticks_values=None, yticks_values=None,
@@ -760,3 +840,456 @@ def plot_parameterized_barplot(data_dictionary, xlabel, ylabel, figure_title, da
         plt.close(fig)
     return fig if return_fig_instead_of_save else None
 
+
+
+# Create a parametrized function for barplots
+def plot_parameterized_barplot_two_y_axis(data_dictionary, xlabel, ylabel_left, ylabel_right, xticks, xtick_labels, figure_title,
+                               color_dict_legends, color_dict_bars, bins, bar_width, data_path_out, filename, yticks_left=None, yticks_right=None,
+                               edgecolor=None, rotate_xticks=False, legends=None, legend_dictionary=None, align='edge',
+                               sem_data_dictionary=None, remove_first_y_left=False, remove_first_y_right=False, xlims=None, ylims_left=None, ylims_right=None,
+                               figure_size=(25, 25), legend_loc='upper right', ncol=2, font_size=90, label_size=75, alpha=1,
+                               capsize=20, elinewidth=5, capthick=3, yticks_labels_left=None, yticks_labels_right=None, plot_minor_ticks=False, spine_width=7,
+                               yticks_font_size=None, xticks_font_size=None, set_ylims_one_extra_tick=False, pad=0.25,
+                               save_svg=True, place_text=None, place_text_loc=None, text_font_size=None, make_text_bold=False,
+                               place_text_color=None, use_sns=True, disable_xtick_edges=False, bbox_to_anchor=None, xlabel_pad=20,
+                               legend_axis_assignment=None, return_fig_instead_of_save=False, show_figure=False):
+    """
+    Creates and optionally saves a parameterized bar plot with two y-axes based on provided data, 
+    customization options, and plot settings.
+
+    Parameters:
+    ----------
+    - data_dictionary (dict): Heights of bars {'Bar1': height1, 'Bar2': height2, ...}.
+    - xlabel (str): Label for the X-axis.
+    - ylabel_left (str): Label for the left Y-axis.
+    - ylabel_right (str): Label for the right Y-axis.
+    - xticks (numpy.array/list): Values to show as ticks on the X-axis.
+    - xtick_labels (numpy.array/list): Labels to overwrite the ticks on the X-axis.
+    - figure_title (str): Title of the figure.
+    - color_dict_legends (dict): Colors for each legend {'Legend1': 'color1', ...}.
+    - color_dict_bars (dict): Colors for each bar {'Bar1': 'color1', ...}.
+    - bins (dict): X-axis positions of each bar {'Bar1': xvalue1, ...}.
+    - bar_width (dict): Width of each bar {'Bar1': width1, ...}.
+    - data_path_out (str): Output directory for saving the plot.
+    - filename (str): Filename for saving the plot, without file extension.
+    - yticks_left, yticks_right (list/array, optional): Ticks for left and right Y-axes.
+    - edgecolor (dict/str, optional): Colors of the contour of each bar.
+    - rotate_xticks (bool, optional): Whether to rotate the X-axis ticks (True for 90 degrees).
+    - legends (list, optional): Distribution names for the legend.
+    - legend_dictionary (dict, optional): Legends corresponding to bars.
+    - align (str, optional): Whether bars are centered ('center') or aligned by their edge ('edge').
+    - sem_data_dictionary (dict, optional): Standard error of the mean for each bar.
+    - remove_first_y_left, remove_first_y_right (bool, optional): Whether to remove the first tick to avoid overlap.
+    - xlims (list, optional): Minimum and maximum values for the X-axis [min_value, max_value].
+    - ylims_left, ylims_right (list, optional): Minimum and maximum values for Y-axes.
+    - figure_size (tuple, optional): Size of the figure.
+    - legend_loc (str, optional): Location of the legend.
+    - ncol (int, optional): Number of columns in the legend.
+    - font_size, label_size (int, optional): Font sizes for elements.
+    - alpha (float, optional): Opacity value.
+    - capsize, elinewidth, capthick (int, optional): Error bar customization.
+    - plot_minor_ticks (bool, optional): Whether to show minor ticks on axes.
+    - spine_width (float, optional): Spines width.
+    - set_ylims_one_extra_tick (bool, optional): Expand Y-axis to include an extra tick.
+    - pad (float, optional): Layout padding.
+    - save_svg (bool, optional): Whether to save SVG.
+    - place_text, place_text_loc, text_font_size, make_text_bold, place_text_color (optional): Text annotations inside plot.
+    - use_sns (bool, optional): Whether to use Seaborn styles.
+    - disable_xtick_edges (bool, optional): Hide X-axis tick edges.
+    - bbox_to_anchor (tuple, optional): Legend bounding box.
+    - xlabel_pad (float, optional): Label pad for X-axis.
+    - legend_axis_assignment (dict, optional): Map each legend entry to 'left' or 'right' axis.
+    - return_fig_instead_of_save (bool, optional): If True, returns figure object instead of saving.
+    - show_figure (bool, optional): If True, the figure is shown, otherwise it is closed.
+
+    Returns:
+    -------
+    - fig (matplotlib.figure.Figure) or None: Returns the merged figure if `return_fig_instead_of_save` is True, else saves to disk.
+    """
+
+    # Turn off interactive mode so that the plots don't show unless commanded.
+    plt.ioff()
+
+    fig, ax1 = plt.subplots(1)
+    ax2 = ax1.twinx()
+
+
+    for key in legends:
+        if legend_axis_assignment[key] == 'left':
+            legend_axis_assignment[key] = ax1
+        elif legend_axis_assignment[key] == 'right':
+            legend_axis_assignment[key] = ax2
+        else:
+            print('Wrong axis given: Acceptable values are "left" and "right".')
+
+    fig.set_size_inches(figure_size)
+    if use_sns:
+        sns.set(font_scale=5.0, style='ticks')
+
+    # Get all bar keys
+    bars = [key for key in data_dictionary.keys()]
+
+    if edgecolor is None:
+        edgecolor = {key: None for key in bars}
+        edgecolor_lw = 0
+    elif edgecolor == 'Same':
+        # Place alpha at edge color
+        # edgecolor = {key: tuple(list(hex2rgb(color_dict_bars[key], normalise=True)) + [alpha]) for key in bars}
+        edgecolor = {key: color_dict_bars[key] for key in bars}
+        edgecolor_lw = 0.5
+    else:
+        edgecolor = {key: edgecolor for key in bars}
+        edgecolor_lw = 0.5
+
+    for i in range(len(bars)):
+        if sem_data_dictionary is not None:
+            for key in legends:
+                if key in bars[i]:
+                    legend_axis_assignment[key].bar(bins[bars[i]], data_dictionary[bars[i]], width=bar_width[bars[i]], align=align,
+                            facecolor=color_dict_bars[bars[i]], yerr=sem_data_dictionary[bars[i]], ecolor='black', capsize=capsize,
+                            error_kw={'elinewidth': elinewidth, 'capthick': capthick}, edgecolor=edgecolor[bars[i]], lw=edgecolor_lw, alpha=alpha)
+
+
+        else:
+            for key in legends:
+                if key in bars[i]:
+                    legend_axis_assignment[key].bar(bins[bars[i]], data_dictionary[bars[i]], width=bar_width[bars[i]], align=align,
+                            facecolor=color_dict_bars[bars[i]], edgecolor=edgecolor[bars[i]], alpha=alpha, lw=edgecolor_lw)
+
+
+    ax1.tick_params(which='major', axis='x', direction='out', pad=15, labelsize=label_size)
+    ax1.tick_params(which='major', axis='y', direction='out', pad=20, labelsize=label_size)
+    ax2.tick_params(which='major', axis='y', direction='out', pad=20, labelsize=label_size)
+    if yticks_left is not None:
+        ax1.set_yticks(yticks_left)
+    if yticks_right is not None:
+        ax2.set_yticks(yticks_right)
+    ax1.set_xticks(xticks)
+    if xticks_font_size is None:
+        xticks_font_size = label_size
+    ax1.set_xticklabels(xtick_labels)
+    if rotate_xticks:
+        ax1.set_xticklabels(ax1.get_xticklabels(), rotation=90)
+    ax1.set_xlabel(xlabel, fontweight='bold', labelpad=xlabel_pad, fontsize=font_size)
+    ax1.set_ylabel(ylabel_left, fontweight='bold', labelpad=20, fontsize=font_size)
+    ax2.set_ylabel(ylabel_right, fontweight='bold', labelpad=20, fontsize=font_size)
+    if yticks_font_size is None:
+        yticks_font_size = label_size
+    if yticks_labels_left is not None:
+        ax1.set_yticklabels(labels=yticks_labels_left, fontsize=yticks_font_size, fontweight='bold')
+    if yticks_labels_right is not None:
+        ax2.set_yticklabels(labels=yticks_labels_right, fontsize=yticks_font_size, fontweight='bold')
+    if xlims:
+        ax1.set_xlim([xlims[0], xlims[1]])
+    if ylims_left:
+        ax1.set_ylim([ylims_left[0], ylims_left[1]])
+    if ylims_right:
+        ax2.set_ylim([ylims_right[0], ylims_right[1]])
+    if set_ylims_one_extra_tick:
+        yticks_default = ax1.get_yticks()
+        y_tick_step = yticks_default[1] - yticks_default[0]
+        ax1.set_ylim([yticks_default[0], yticks_default[-1] + y_tick_step])
+
+    labels_x = ax1.get_xticklabels()
+    labels_y = ax1.get_yticklabels() + ax2.get_yticklabels()
+    [label.set_fontweight('bold') for label in labels_x]
+    [label.set_fontweight('bold') for label in labels_y]
+    [label.set_fontsize(xticks_font_size) for label in labels_x]
+    [label.set_fontsize(yticks_font_size) for label in labels_y]
+
+    if legends:
+        patches = []
+        for i in range(0, len(legends)):
+            if legend_dictionary is not None:
+                patches.append(mpatches.Patch(color=color_dict_legends[legends[i]], label=legend_dictionary[legends[i]], visible=False))
+            else:
+                patches.append(mpatches.Patch(color=color_dict_legends[legends[i]], label=legends[i], visible=False))
+
+        if bbox_to_anchor is not None:
+            ax1.legend(handles=patches, handlelength=1, frameon=False, loc=legend_loc, labelcolor='linecolor', ncol=ncol, bbox_to_anchor=bbox_to_anchor)
+        else:
+            ax1.legend(handles=patches, handlelength=1, frameon=False, loc=legend_loc, labelcolor='linecolor', ncol=ncol)
+
+        plt.setp(ax1.get_legend().get_texts(), fontsize=font_size, fontweight='bold')
+
+    ax1.spines['right'].set_visible(False)
+    ax1.spines['top'].set_visible(False)
+    ax2.spines['left'].set_visible(False)
+    ax2.spines['top'].set_visible(False)
+    ax2.spines['bottom'].set_visible(False)
+
+    if remove_first_y_left:
+        ax1.yaxis.get_major_ticks()[0].set_visible(False)
+    if remove_first_y_right:
+        ax2.yaxis.get_major_ticks()[0].set_visible(False)
+    [i.set_linewidth(spine_width) for i in ax1.spines.values()]
+    [i.set_linewidth(spine_width) for i in ax2.spines.values()]
+
+    ax1.xaxis.set_tick_params(which='major', width=5, length=20, direction='out')
+    ax1.yaxis.set_tick_params(which='major', width=5, length=20, direction='out')
+    ax2.yaxis.set_tick_params(which='major', width=5, length=20, direction='out')
+
+    if plot_minor_ticks:
+        ax1.xaxis.set_minor_locator(AutoMinorLocator(5))
+        ax1.yaxis.set_minor_locator(AutoMinorLocator(5))
+        ax2.yaxis.set_minor_locator(AutoMinorLocator(5))
+        ax1.xaxis.set_tick_params(which='minor', width=3, length=12, direction='out')
+        ax1.yaxis.set_tick_params(which='minor', width=3, length=12, direction='out')
+        ax2.yaxis.set_tick_params(which='minor', width=3, length=12, direction='out')
+
+    plt.title(figure_title, fontsize=font_size, fontweight='bold')
+
+    if disable_xtick_edges:
+        ax1.xaxis.set_tick_params(which='major', width=0, length=0, direction='out')
+
+    if place_text is not None:
+        if type(place_text) == list:
+            for i in range(len(place_text)):
+                ax1.annotate(place_text[i], xy=place_text_loc[i], xycoords='axes fraction',
+                            fontsize=text_font_size[i], fontweight=f'{"bold" if make_text_bold else "normal"}',
+                            color=f'{place_text_color[i] if place_text_color[i] is not None else "black"}')
+
+        elif place_text:
+            ax1.annotate(place_text, xy=place_text_loc, xycoords='axes fraction',
+                        fontsize=text_font_size, fontweight=f'{"bold" if make_text_bold else "normal"}',
+                        color=f'{place_text_color if place_text_color is not None else "black"}')
+
+    fig.tight_layout(pad=pad)
+
+    # Save figure
+    if not return_fig_instead_of_save:
+        if data_path_out and filename:
+            if not os.path.exists(data_path_out):
+                os.makedirs(data_path_out)
+            plt.savefig(os.path.join(data_path_out, filename + '.png'), format='png')
+            if save_svg:
+                data_path_out2 = os.path.join(data_path_out, 'SVG')
+                if not os.path.exists(data_path_out2):
+                    os.makedirs(data_path_out2)
+                plt.savefig(os.path.join(data_path_out2, filename + '.svg'), format='svg')
+
+    if show_figure:
+        plt.show()
+    else:
+        plt.close(fig)
+        
+    return fig if return_fig_instead_of_save else None
+
+
+def plot_parameterized_heatmap(data, title, xlabel, ylabel, data_path_out, filename,
+                          font_size=45, label_size=45/1.125, figure_size=(20, 20), plot_colorbar=False, vmin=0, vmax=1,
+                          rotate_ticks=False, cmap='rocket', return_fig_instead_of_save=False, show_figure=False):
+    """
+    Creates and optionally saves a parameterized heatmap.
+
+    Parameters:
+    ----------
+    - data (numpy.array/pandas.DataFrame): 2D dataset to plot.
+    - title (str): Title of the heatmap.
+    - xlabel (str): Label for the X-axis.
+    - ylabel (str): Label for the Y-axis.
+    - data_path_out (str): Path to save the output file.
+    - filename (str): Output filename.
+    - font_size (int, optional): Base Font size.
+    - label_size (int/float, optional): Label size for values.
+    - figure_size (tuple, optional): Size of the figure.
+    - plot_colorbar (bool, optional): Whether to display colorbar.
+    - vmin, vmax (float, optional): Minimum and maximum values mapped in the colormap.
+    - rotate_ticks (bool, optional): Rotate tick labels.
+    - cmap (str, optional): Colormap visualization template.
+    - return_fig_instead_of_save (bool, optional): If True, returns figure object instead of saving.
+    - show_figure (bool, optional): If True, shows the figure.
+
+    Returns:
+    -------
+    - fig (matplotlib.figure.Figure) or None: Returns the figure if `return_fig_instead_of_save` is True.
+    """
+    # Make the heatmap plot and store it
+    plt.ioff()
+    fig, ax = plt.subplots(1)
+    fig.set_size_inches(figure_size)
+    sns.heatmap(data, annot=True, ax=ax, annot_kws={'fontsize': label_size}, cbar_kws={'pad': 0.01}, cbar=plot_colorbar, vmin=vmin, vmax=vmax, cmap=cmap)
+    if plot_colorbar:
+        cbar = ax.collections[0].colorbar
+        cbar.ax.tick_params(labelsize=font_size)
+    ax.set_xlabel(xlabel, fontweight='bold', labelpad=40, fontsize=font_size)
+    ax.set_ylabel(ylabel, fontweight='bold', labelpad=40, fontsize=font_size)
+    labels = ax.get_xticklabels() + ax.get_yticklabels()
+    [label.set_fontsize(label_size) for label in labels]
+    [label.set_fontweight('bold') for label in labels]
+    if rotate_ticks:
+        [label.set_rotation('vertical') for label in ax.get_xticklabels()]
+        [label.set_rotation('horizontal') for label in ax.get_yticklabels()]
+
+    plt.title(title, fontsize=font_size, fontweight='bold')
+    fig.tight_layout(pad=0.5)
+    
+    if not return_fig_instead_of_save:
+        if data_path_out and filename:
+            if not os.path.exists(data_path_out):
+                os.makedirs(data_path_out)
+            plt.savefig(os.path.join(data_path_out, filename + '.png'), format='png')
+
+    if show_figure:
+        plt.show()
+    else:
+        plt.close(fig)
+        
+    return fig if return_fig_instead_of_save else None
+
+
+def draw_multiple_figures_as_subplots_at_single_figure(figures_list, figure_rows, data_path_out, filename, grid_hspace=0, return_fig_instead_of_save=False,
+                                                       place_text=None, place_text_loc=None, text_font_size=None, make_text_bold=False,
+                                                       place_text_color=None, rotate_place_text=None, pad=0.5, show_figure=False):
+    """
+    Receives as inputs multiple figure instances and draws them together as subplots in a single figure.
+    All figures must have the same height but they can have varying widths.
+    
+    IMPORTANT NOTES:
+    1) When merging individual figures and then placing text, all individual figures must have the same pad, say pad_start, 
+       the merged figure must have a pad of pad = 2*pad_start and the font size of the placed text must be 
+       font_size * single_figure_height / (merged_figure_single_row_height + 1 - pad).
+    2) When merging individual figures and an already merged figure from this function that belong in different rows, 
+       all individual figures must have the same pad, say pad_start, the new merged figure must have a pad of pad = pad_start 
+       and the font size of the new individual figures must be * first_merged_figure_individual_plot_height / (merged_figure_single_row_height +1 - pad).
+
+    Parameters:
+    ----------
+    - figures_list (list): List of matplotlib figure instances (e.g., [fig1, fig2, fig3, ...]).
+    - figure_rows (list/array): List of rows for each figure to be placed at. Rows must maintain an incremental order.
+    - data_path_out (str): Path to output directory.
+    - filename (str): Output filename.
+    - grid_hspace (float, optional): Height space between grids.
+    - return_fig_instead_of_save (bool, optional): Flag to disable save and return the final Figure.
+    - place_text (list, optional): Strings of text to annotate on the image ['text1', 'text2'].
+    - place_text_loc (list, optional): Locations for each annotated text [[x1, y1], [x2, y2]].
+    - text_font_size (list, optional): Font sizes for the text arrays.
+    - make_text_bold (bool, optional): Set to True if annotations should be bold.
+    - place_text_color (list, optional): List of colors for text array.
+    - rotate_place_text (list, optional): Boolean list indicating whether placed texts should be rotated vertically.
+    - pad (float, optional): Tight layout padding.
+    - show_figure (bool, optional): If True, shows the figure.
+    
+    Returns:
+    -------
+    - fig (matplotlib.figure.Figure) or None: Returns the merged figure if `return_fig_instead_of_save` is True, else saves to disk.
+    """
+
+    # Create a dict that maps the rows to the figures
+    row_to_fig_dict = {f'Row{i}': [f'F{j}' for j in np.where(figure_rows == i)[0]] for i in np.unique(figure_rows)}
+
+    # Get the number of figures each row contains
+    row_to_fig_num_dict = {row: len(row_to_fig_dict[row]) for row in row_to_fig_dict.keys()}
+
+    # Create a dict that maps the figures to the rows
+    figure_to_row_dict = {f'F{i}': figure_rows[i] for i in range(total_figs)}
+
+    # Get the sizes of each figure (as integers)
+    figure_widths = {f'F{i}': int(figures_list[i].get_size_inches()[0]) for i in range(total_figs)}
+    figure_heights = {f'F{i}': int(figures_list[i].get_size_inches()[1]) for i in range(total_figs)}
+
+    # Make sure that all figures have the same height
+    assert len(set(figure_heights.values()))
+
+    # Get the width of each row
+    row_width_dict = {f'Row{i}': np.sum([figure_widths[fig] for fig in row_to_fig_dict[f'Row{i}']]) for i in range(total_rows)}
+
+    # Get the max width across rows
+    max_row_width = np.max([row_width_dict[row] for row in row_width_dict.keys()])
+    # Define the number of columns in the grid, which will be the same as the image width
+    # grid_cols = max_row_width + np.max([row_to_fig_num_dict[row] for row in row_to_fig_num_dict.keys()]) + 1
+    grid_cols = max_row_width
+    image_width = grid_cols
+    # Define the height of the image
+    image_height = figure_heights['F0'] * total_rows + total_rows + 1
+    # image_height = figure_heights['F0'] * total_rows
+
+    # Get the canvas for each figure
+    figure_canvas = {f'F{i}': figures_list[i].canvas for i in range(total_figs)}
+    # Draw the canvas for each figure
+    [figure_canvas[f'F{i}'].draw() for i in range(total_figs)]
+    # Get the array canvas for each figure
+    array_canvas = {f'F{i}': np.array(figure_canvas[f'F{i}'].buffer_rgba()) for i in range(total_figs)}
+
+    # Define the grid
+    grid = gridspec.GridSpec(nrows=total_rows, ncols=grid_cols, width_ratios=[1] * grid_cols, height_ratios=[1] * total_rows)
+    # grid.update(hspace=grid_hspace, wspace=grid_wspace)
+
+    # Create the figure
+    fig, ax = plt.subplots(figsize=(image_width, image_height), zorder=1)
+    ax.axis('off')
+    # Create a dict for the axis that will be created for each plot
+    axis_dict = {}
+    # Add a subplot for each figure starting from the first row
+    current_row = 0
+    for i in range(total_figs):
+        fig_width = figure_widths[f'F{i}']
+        # fig_height = figure_heights[f'F{i}']
+        fig_row = figure_to_row_dict[f'F{i}']
+        if fig_row != current_row or i == 0:
+            current_row = fig_row
+            current_col = 0
+            # Get the total width of the figures of the current row
+            current_row_figure_width = row_width_dict[f'Row{current_row}']
+            if row_to_fig_num_dict[f'Row{current_row}'] > 1:
+                # Define the width space
+                wspace_cols = int((grid_cols - current_row_figure_width) / (row_to_fig_num_dict[f'Row{current_row}'] - 1))
+                wspace = wspace_cols/grid_cols
+                grid.update(hspace=grid_hspace, wspace=wspace)
+            else:
+                wspace_cols = 0
+
+        print(grid[current_row, current_col:(current_col + fig_width)])
+        # Add subplot and axis to dict
+        axis_dict[f'F{i}'] = fig.add_subplot(grid[current_row, current_col:(current_col + fig_width)], zorder=-1)
+        # Render the data
+        axis_dict[f'F{i}'].matshow(array_canvas[f'F{i}'], zorder=-1)
+        axis_dict[f'F{i}'].axis('off')
+
+        # Update current column
+        current_col += fig_width + wspace_cols
+
+    if place_text is not None:
+        # Set the zorder of the annotation to be higher than the default value of 0
+        for i in range(len(place_text)):
+            # ax.annotate(place_text[i], xy=place_text_loc[i], xycoords='axes fraction',
+            #             fontsize=text_font_size[i], fontweight=f'{"bold" if make_text_bold else "normal"}',
+            #             color=f'{place_text_color[i] if place_text_color[i] is not None else "black"}', rotation=f'{"vertical" if rotate_place_text[i] else "horizontal"}', zorder=10)
+            ax.annotate(place_text[i], xy=place_text_loc[i], xycoords='axes fraction',
+                        fontsize=text_font_size[i], fontweight=f'{"bold" if make_text_bold else "normal"}',
+                        color=place_text_color[i], rotation=f'{"vertical" if rotate_place_text[i] else "horizontal"}', zorder=10)
+    fig.tight_layout(pad=pad)
+
+    if not return_fig_instead_of_save:
+        if data_path_out and filename:
+            if not os.path.exists(data_path_out):
+                os.makedirs(data_path_out)
+            plt.savefig(os.path.join(data_path_out, filename + '.png'), format='png')
+            
+            data_path_out_svg = os.path.join(data_path_out, 'SVG')
+            if not os.path.exists(data_path_out_svg):
+                os.makedirs(data_path_out_svg)
+            plt.savefig(os.path.join(data_path_out_svg, filename + '.svg'), format='svg')
+
+    if show_figure:
+        plt.show()
+    else:
+        plt.close(fig)
+        
+    return fig if return_fig_instead_of_save else None
+
+
+def create_empty_figure(figure_size):
+    """
+    Creates an empty matplotlib figure with a specified size.
+
+    Parameters:
+    ----------
+    - figure_size (tuple): Dimensions of the created figure (width, height).
+
+    Returns:
+    -------
+    - fig (matplotlib.figure.Figure): Empty figure object.
+    """
+    fig = plt.figure(figsize=figure_size, zorder=-1)
+    return fig
