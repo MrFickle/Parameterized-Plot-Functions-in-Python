@@ -1,3 +1,5 @@
+"""Legend construction helpers for line-like and patch-like plots."""
+
 import matplotlib.lines as mlines
 import matplotlib.patches as mpatches
 from matplotlib.axes import Axes
@@ -11,9 +13,23 @@ def apply_line_legend(
     legend_style: LegendStyle,
     linewidth_multiplier: float = 1.0,
 ) -> None:
+    """
+    Function purpose:
+        Create a legend from line handles derived from series style settings.
+
+    Args:
+        ax: Matplotlib axis that receives the legend.
+        series_styles: Mapping from series key to visual style.
+        legend_style: Legend styling and placement configuration.
+        linewidth_multiplier: Multiplier applied to legend line widths.
+
+    Outputs:
+        None. The axis is modified in place when legends are enabled.
+    """
     if not legend_style.enabled:
         return
 
+    # Build explicit handles so legends can represent series consistently.
     handles = []
     for key, style in series_styles.items():
         handles.append(
@@ -48,9 +64,22 @@ def apply_patch_legend(
     patch_specs: list[tuple[str, str]],
     legend_style: LegendStyle,
 ) -> None:
+    """
+    Function purpose:
+        Create a legend from colored patch entries.
+
+    Args:
+        ax: Matplotlib axis that receives the legend.
+        patch_specs: List of ``(label, color)`` pairs for legend patches.
+        legend_style: Legend styling and placement configuration.
+
+    Outputs:
+        None. The axis is modified in place when legends are enabled.
+    """
     if not legend_style.enabled:
         return
 
+    # Patch legends are used by filled plot types such as bars and histograms.
     patches = [mpatches.Patch(color=color, label=label) for label, color in patch_specs]
 
     legend = ax.legend(

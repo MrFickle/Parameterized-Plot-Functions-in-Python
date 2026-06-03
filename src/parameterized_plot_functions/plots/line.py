@@ -1,4 +1,7 @@
+"""Line plot builder with optional errors, reference lines, and annotations."""
+
 import matplotlib.pyplot as plt
+from matplotlib.figure import Figure
 from matplotlib.ticker import AutoMinorLocator
 import numpy as np
 import seaborn as sns
@@ -47,7 +50,46 @@ def plot_line(
     rotate_xticks: bool = False,
     plot_minor_ticks: bool = False,
     extend_y_one_tick: bool = False,
-):
+) -> Figure | None:
+    """
+    Function purpose:
+        Draw one or more named line series with optional uncertainty, reference
+        lines, annotations, legends, and axis formatting.
+
+    Args:
+        x_series: Mapping from series key to x values.
+        y_series: Mapping from series key to y values.
+        xlabel: Text for the x-axis label.
+        ylabel: Text for the y-axis label.
+        title: Figure title text.
+        series_styles: Optional mapping from series key to visual style.
+        axis_style: Optional axis styling configuration.
+        figure_style: Optional figure-level styling and display configuration.
+        legend_style: Optional legend styling and placement configuration.
+        output_config: Optional output saving and return behavior configuration.
+        yerr_series: Optional mapping from series key to y-error values.
+        use_fill_between: Whether to render y-error as a filled band.
+        xlims: Optional x-axis limits.
+        ylims: Optional y-axis limits.
+        xticks: Optional x-axis tick positions.
+        yticks: Optional y-axis tick positions.
+        xtick_labels: Optional x-axis tick labels.
+        ytick_labels: Optional y-axis tick labels.
+        annotations: Optional annotations to draw on the axis.
+        line_spec: Optional vertical and horizontal reference lines.
+        use_mask: Whether to drop non-finite y values before plotting.
+        errorbar_capsize: Cap size for errorbar rendering.
+        errorbar_elinewidth: Errorbar line width.
+        errorbar_capthick: Errorbar cap thickness.
+        use_line_color_for_error: Whether error bands/errorbars use series color.
+        rotate_xticks: Whether to rotate x tick labels by 90 degrees.
+        plot_minor_ticks: Whether to add minor ticks.
+        extend_y_one_tick: Whether to extend y-axis by one major tick interval.
+
+    Outputs:
+        The figure when ``output_config.return_fig`` is true, otherwise ``None``.
+    """
+    # Instantiate default configs at call time to avoid shared mutable state.
     if axis_style is None:
         axis_style = AxisStyle()
     if figure_style is None:
@@ -59,17 +101,20 @@ def plot_line(
     if series_styles is None:
         series_styles = {key: SeriesStyle(label=key) for key in x_series}
 
+    # Disable interactive rendering for batch/script usage.
     plt.ioff()
     if figure_style.use_seaborn:
         sns.set(style=figure_style.seaborn_style, font_scale=figure_style.seaborn_font_scale)
 
     fig, ax = plt.subplots(figsize=figure_style.figure_size)
 
+    # Each key identifies one plotted series; missing styles fall back per series.
     for key in x_series:
         x = np.asarray(x_series[key])
         y = np.asarray(y_series[key])
         style = series_styles.get(key, SeriesStyle(label=key))
 
+        # Mask non-finite y values so broken points do not drive plotting errors.
         if use_mask:
             mask = np.isfinite(y)
             x_plot = x[mask]
@@ -78,6 +123,7 @@ def plot_line(
             x_plot = x
             y_plot = y
 
+        # Error values can be rendered as a filled band or as errorbar caps.
         if yerr_series is not None and key in yerr_series:
             yerr = np.asarray(yerr_series[key])
             if use_mask:
@@ -138,6 +184,7 @@ def plot_line(
                 alpha=style.alpha,
             )
 
+    # Optional reference lines are drawn after data so they overlay the series.
     if line_spec is not None:
         for spec in line_spec.vertical:
             ax.axvline(
@@ -156,6 +203,7 @@ def plot_line(
                 alpha=spec.alpha,
             )
 
+    # Shared axis helper applies ticks, labels, limits, scales, and spine style.
     apply_axis_style(
         ax=ax,
         xlabel=xlabel,
@@ -172,6 +220,7 @@ def plot_line(
     if rotate_xticks:
         ax.set_xticklabels(ax.get_xticklabels(), rotation=90)
 
+    # Minor ticks use a fixed subdivision count for consistent visual density.
     if plot_minor_ticks:
         ax.xaxis.set_minor_locator(AutoMinorLocator(5))
         ax.yaxis.set_minor_locator(AutoMinorLocator(5))
@@ -181,6 +230,7 @@ def plot_line(
     if extend_y_one_tick:
         extend_y_axis_one_tick(ax)
 
+    # Legends and annotations are applied after axis setup to avoid stale handles.
     apply_line_legend(ax, series_styles, legend_style, linewidth_multiplier=1.0)
     apply_annotations(ax, annotations)
 

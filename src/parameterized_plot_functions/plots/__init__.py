@@ -1,3 +1,5 @@
+"""Plot function exports."""
+
 from .line import plot_line
 from .hist import plot_histogram
 from .scatter import plot_scatter

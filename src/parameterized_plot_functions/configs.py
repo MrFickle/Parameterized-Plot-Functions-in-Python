@@ -1,9 +1,13 @@
+"""Configuration dataclasses used by the plotting functions."""
+
 from dataclasses import dataclass, field
 from typing import Optional
 
 
 @dataclass
 class AxisStyle:
+    """Styling and scale options for matplotlib axes."""
+
     xlabel_size: int = 18
     ylabel_size: int = 18
     xtick_size: int = 14
@@ -23,6 +27,8 @@ class AxisStyle:
 
 @dataclass
 class FigureStyle:
+    """Figure-level sizing, title, layout, display, and seaborn options."""
+
     figure_size: tuple[float, float] = (10, 8)
     title_size: int = 18
     title_weight: str = "bold"
@@ -35,6 +41,8 @@ class FigureStyle:
 
 @dataclass
 class OutputConfig:
+    """Controls whether and where generated figures are saved or returned."""
+
     output_dir: Optional[str] = None
     filename: Optional[str] = None
     save_svg: bool = True
@@ -45,6 +53,8 @@ class OutputConfig:
 
 @dataclass
 class LegendStyle:
+    """Legend visibility, placement, and typography options."""
+
     enabled: bool = True
     loc: str = "best"
     ncol: int = 1
@@ -58,6 +68,8 @@ class LegendStyle:
 
 @dataclass
 class SeriesStyle:
+    """Visual style for one named data series."""
+
     color: str = "blue"
     label: Optional[str] = None
     linewidth: float = 2.0
@@ -72,6 +84,8 @@ class SeriesStyle:
 
 @dataclass
 class TextStyle:
+    """Text styling used by annotations."""
+
     fontsize: int = 14
     color: str = "black"
     bold: bool = False
@@ -80,6 +94,8 @@ class TextStyle:
 
 @dataclass
 class AnnotationSpec:
+    """Text annotation positioned in a matplotlib coordinate system."""
+
     text: str
     xy: tuple[float, float]
     xycoords: str = "axes fraction"
@@ -88,6 +104,8 @@ class AnnotationSpec:
 
 @dataclass
 class ReferenceLineSpec:
+    """Style and coordinate for one vertical or horizontal reference line."""
+
     value: float
     color: str = "black"
     linestyle: str = "--"
@@ -97,12 +115,16 @@ class ReferenceLineSpec:
 
 @dataclass
 class LineSpec:
+    """Collections of reference lines to draw on an axis."""
+
     vertical: list[ReferenceLineSpec] = field(default_factory=list)
     horizontal: list[ReferenceLineSpec] = field(default_factory=list)
 
 
 @dataclass
 class ColorbarConfig:
+    """Colorbar settings for scatter plots with mapped color values."""
+
     enabled: bool = False
     colormap: str = "viridis"
     label: Optional[str] = None

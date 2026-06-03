@@ -1,5 +1,10 @@
+"""Histogram plot builder with optional KDE and summary labels."""
+
+from typing import Any
+
 import matplotlib.patches as mpatches
 import matplotlib.pyplot as plt
+from matplotlib.figure import Figure
 import numpy as np
 import seaborn as sns
 # import diptest
@@ -13,7 +18,7 @@ from ..saving import finalize_figure
 
 def plot_histogram(
     data_series: dict[str, np.ndarray],
-    bins,
+    bins: Any,
     xlabel: str,
     ylabel: str,
     title: str,
@@ -37,7 +42,43 @@ def plot_histogram(
     annotations: list[AnnotationSpec] | None = None,
     line_spec: LineSpec | None = None,
     extend_y_one_tick: bool = False,
-):
+) -> Figure | None:
+    """
+    Function purpose:
+        Draw one or more named histograms with optional KDE, summary statistics,
+        reference lines, annotations, legends, and axis formatting.
+
+    Args:
+        data_series: Mapping from series key to histogram values.
+        bins: Histogram bin specification passed to seaborn.
+        xlabel: Text for the x-axis label.
+        ylabel: Text for the y-axis label.
+        title: Figure title text.
+        series_styles: Optional mapping from series key to visual style.
+        axis_style: Optional axis styling configuration.
+        figure_style: Optional figure-level styling and display configuration.
+        legend_style: Optional legend styling and placement configuration.
+        output_config: Optional output saving and return behavior configuration.
+        hist_stat: Histogram statistic passed to seaborn.
+        plot_kde: Whether to overlay a kernel density estimate.
+        plot_mean: Whether to append the mean to legend labels.
+        plot_std: Whether to append the sample standard deviation to legend labels.
+        perform_dip_test: Reserved flag for dip-test label support.
+        vertical_lines: Optional x-values for legacy vertical reference lines.
+        xlims: Optional x-axis limits.
+        ylims: Optional y-axis limits.
+        xticks: Optional x-axis tick positions.
+        yticks: Optional y-axis tick positions.
+        xtick_labels: Optional x-axis tick labels.
+        ytick_labels: Optional y-axis tick labels.
+        annotations: Optional annotations to draw on the axis.
+        line_spec: Optional vertical and horizontal reference lines.
+        extend_y_one_tick: Whether to extend y-axis by one major tick interval.
+
+    Outputs:
+        The figure when ``output_config.return_fig`` is true, otherwise ``None``.
+    """
+    # Instantiate default configs at call time to avoid shared mutable state.
     if axis_style is None:
         axis_style = AxisStyle()
     if figure_style is None:
@@ -49,10 +90,12 @@ def plot_histogram(
     if series_styles is None:
         series_styles = {key: SeriesStyle(label=key) for key in data_series}
 
+    # Disable interactive rendering for batch/script usage.
     plt.ioff()
     if figure_style.use_seaborn:
         sns.set(style=figure_style.seaborn_style, font_scale=figure_style.seaborn_font_scale)
 
+    # Build histograms and legend patch specs from the same style mapping.
     fig, ax = plt.subplots(figsize=figure_style.figure_size)
     patch_specs = []
 
@@ -72,6 +115,7 @@ def plot_histogram(
             line_kws={"linewidth": style.linewidth},
         )
 
+        # Optional summary statistics are appended to the legend label.
         label = style.label if style.label is not None else key
         suffix_parts = []
 
@@ -88,16 +132,19 @@ def plot_histogram(
 
         patch_specs.append((label, style.color))
 
+    # Optional reference lines are drawn after data so they overlay histograms.
     if line_spec is not None:
         for spec in line_spec.vertical:
             ax.axvline(spec.value, color=spec.color, linestyle=spec.linestyle, linewidth=spec.linewidth, alpha=spec.alpha)
         for spec in line_spec.horizontal:
             ax.axhline(spec.value, color=spec.color, linestyle=spec.linestyle, linewidth=spec.linewidth, alpha=spec.alpha)
 
+    # Legacy vertical line support is kept separate from LineSpec.
     if vertical_lines is not None:
         for v in vertical_lines:
             ax.axvline(x=v, color="black", linestyle="--", linewidth=1.5)
 
+    # Shared axis helper applies ticks, labels, limits, scales, and spine style.
     apply_axis_style(
         ax=ax,
         xlabel=xlabel,

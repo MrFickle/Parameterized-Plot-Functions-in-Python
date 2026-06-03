@@ -1,4 +1,9 @@
+"""Heatmap plot builder for matrix-like data."""
+
+from typing import Any
+
 import matplotlib.pyplot as plt
+from matplotlib.figure import Figure
 import seaborn as sns
 
 from ..configs import AxisStyle, FigureStyle, OutputConfig
@@ -6,7 +11,7 @@ from ..saving import finalize_figure
 
 
 def plot_heatmap(
-    data,
+    data: Any,
     xlabel: str,
     ylabel: str,
     title: str,
@@ -19,7 +24,31 @@ def plot_heatmap(
     vmax=None,
     cmap: str = "rocket",
     rotate_ticks: bool = False,
-):
+) -> Figure | None:
+    """
+    Function purpose:
+        Draw a seaborn heatmap for matrix-like data and apply standard figure
+        finalization.
+
+    Args:
+        data: Matrix-like data accepted by ``seaborn.heatmap``.
+        xlabel: Text for the x-axis label.
+        ylabel: Text for the y-axis label.
+        title: Figure title text.
+        axis_style: Optional axis styling configuration.
+        figure_style: Optional figure-level styling and display configuration.
+        output_config: Optional output saving and return behavior configuration.
+        annotate: Whether to display numeric values inside heatmap cells.
+        colorbar: Whether to display a heatmap colorbar.
+        vmin: Optional lower bound for color scaling.
+        vmax: Optional upper bound for color scaling.
+        cmap: Colormap name passed to seaborn.
+        rotate_ticks: Whether to rotate x tick labels by 90 degrees.
+
+    Outputs:
+        The figure when ``output_config.return_fig`` is true, otherwise ``None``.
+    """
+    # Instantiate default configs at call time to avoid shared mutable state.
     if axis_style is None:
         axis_style = AxisStyle()
     if figure_style is None:
@@ -27,12 +56,14 @@ def plot_heatmap(
     if output_config is None:
         output_config = OutputConfig()
 
+    # Disable interactive rendering for batch/script usage.
     plt.ioff()
     if figure_style.use_seaborn:
         sns.set(style=figure_style.seaborn_style, font_scale=figure_style.seaborn_font_scale)
 
     fig, ax = plt.subplots(figsize=figure_style.figure_size)
 
+    # Seaborn handles matrix rendering while matplotlib handles final styling.
     sns.heatmap(
         data,
         annot=annotate,
@@ -46,6 +77,7 @@ def plot_heatmap(
         cbar_kws={"pad": 0.01} if colorbar else None,
     )
 
+    # Heatmap axes use direct label styling instead of the generic axis helper.
     ax.set_xlabel(xlabel, fontsize=axis_style.xlabel_size, fontweight="bold", labelpad=20)
     ax.set_ylabel(ylabel, fontsize=axis_style.ylabel_size, fontweight="bold", labelpad=20)
 

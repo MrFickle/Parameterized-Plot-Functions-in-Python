@@ -1,3 +1,5 @@
+"""Public API for parameterized matplotlib plotting helpers."""
+
 from .configs import (
     AnnotationSpec,
     AxisStyle,

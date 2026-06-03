@@ -1,3 +1,5 @@
+"""Default style exports."""
+
 from .defaults import DEFAULT_AXIS_STYLE, DEFAULT_FIGURE_STYLE, DEFAULT_LEGEND_STYLE
 
 __all__ = [
