@@ -4,7 +4,6 @@ import matplotlib.pyplot as plt
 from matplotlib.figure import Figure
 from matplotlib.ticker import AutoMinorLocator
 import numpy as np
-import seaborn as sns
 
 from ..annotations import apply_annotations
 from ..axes import apply_axis_style, extend_y_axis_one_tick
@@ -16,9 +15,11 @@ from ..configs import (
     LineSpec,
     OutputConfig,
     SeriesStyle,
+    ShadedRegionSpec,
 )
 from ..legends import apply_line_legend
 from ..saving import finalize_figure
+from ..style.themes import apply_theme
 
 
 def plot_line(
@@ -33,7 +34,10 @@ def plot_line(
     legend_style: LegendStyle | None = None,
     output_config: OutputConfig | None = None,
     yerr_series: dict[str, np.ndarray] | None = None,
+    ci_series: dict[str, tuple[np.ndarray, np.ndarray]] | None = None,
     use_fill_between: bool = True,
+    step_where: str | None = None,
+    rolling_window: int | None = None,
     xlims: tuple[float, float] | None = None,
     ylims: tuple[float, float] | None = None,
     xticks: list[float] | None = None,
@@ -42,6 +46,8 @@ def plot_line(
     ytick_labels: list[str] | None = None,
     annotations: list[AnnotationSpec] | None = None,
     line_spec: LineSpec | None = None,
+    shaded_regions: list[ShadedRegionSpec] | None = None,
+    endpoint_labels: bool = False,
     use_mask: bool = True,
     errorbar_capsize: float = 4,
     errorbar_elinewidth: float = 2,
@@ -103,8 +109,7 @@ def plot_line(
 
     # Disable interactive rendering for batch/script usage.
     plt.ioff()
-    if figure_style.use_seaborn:
-        sns.set(style=figure_style.seaborn_style, font_scale=figure_style.seaborn_font_scale)
+    apply_theme(figure_style, axis_style)
 
     fig, ax = plt.subplots(figsize=figure_style.figure_size)
 
@@ -123,6 +128,10 @@ def plot_line(
             x_plot = x
             y_plot = y
 
+        if rolling_window is not None and rolling_window > 1:
+            kernel = np.ones(rolling_window) / rolling_window
+            y_plot = np.convolve(y_plot, kernel, mode="same")
+
         # Error values can be rendered as a filled band or as errorbar caps.
         if yerr_series is not None and key in yerr_series:
             yerr = np.asarray(yerr_series[key])
@@ -130,7 +139,8 @@ def plot_line(
                 yerr = yerr[mask]
 
             if use_fill_between:
-                ax.plot(
+                plotter = ax.step if step_where else ax.plot
+                plotter(
                     x_plot,
                     y_plot,
                     color=style.color,
@@ -139,6 +149,7 @@ def plot_line(
                     marker=style.marker,
                     markersize=style.markersize,
                     alpha=style.alpha,
+                    **({"where": step_where} if step_where else {}),
                 )
                 ax.fill_between(
                     x_plot,
@@ -164,16 +175,19 @@ def plot_line(
                     alpha=style.alpha,
                 )
                 if style.marker is None:
-                    ax.plot(
+                    plotter = ax.step if step_where else ax.plot
+                    plotter(
                         x_plot,
                         y_plot,
                         color=style.color,
                         linewidth=style.linewidth,
                         linestyle=style.linestyle,
                         alpha=style.alpha,
+                        **({"where": step_where} if step_where else {}),
                     )
         else:
-            ax.plot(
+            plotter = ax.step if step_where else ax.plot
+            plotter(
                 x_plot,
                 y_plot,
                 color=style.color,
@@ -182,7 +196,21 @@ def plot_line(
                 marker=style.marker,
                 markersize=style.markersize,
                 alpha=style.alpha,
+                **({"where": step_where} if step_where else {}),
             )
+
+        if ci_series is not None and key in ci_series:
+            lower, upper = ci_series[key]
+            lower_arr = np.asarray(lower)[mask] if use_mask else np.asarray(lower)
+            upper_arr = np.asarray(upper)[mask] if use_mask else np.asarray(upper)
+            ax.fill_between(x_plot, lower_arr, upper_arr, color=style.color, alpha=min(style.alpha, 0.18))
+
+        if endpoint_labels and len(x_plot) > 0:
+            ax.text(x_plot[-1], y_plot[-1], style.label if style.label is not None else key, color=style.color)
+
+    if shaded_regions is not None:
+        for region in shaded_regions:
+            ax.axvspan(region.xmin, region.xmax, color=region.color, alpha=region.alpha, label=region.label)
 
     # Optional reference lines are drawn after data so they overlay the series.
     if line_spec is not None:

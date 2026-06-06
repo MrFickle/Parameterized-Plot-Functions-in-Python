@@ -8,12 +8,14 @@ and old example scripts for reference.
 
 ## What It Provides
 
-- Line, scatter, histogram, bar, dual-axis bar, and heatmap plotting helpers
+- Line, scatter, histogram, bar, grouped bar, stacked bar, dual-axis bar, heatmap,
+  correlation heatmap, box, violin, pie, area, hexbin, contour, and timeline plotting helpers
 - Shared dataclass configs for axis, figure, legend, series, annotations, reference lines, colorbars, and output
 - Consistent Matplotlib styling across plot types
 - Optional figure saving to PNG and SVG
+- Optional figure saving to PDF, transparent backgrounds, and metadata sidecars
 - Optional return of Matplotlib `Figure` objects for tests, notebooks, or downstream composition
-- Grid composition helpers for combining generated figures
+- Grid and subplot composition helpers for combining generated figures or axes callbacks
 
 ## Project Layout
 
@@ -110,6 +112,11 @@ When both `output_dir` and `filename` are provided:
 
 - PNG is written to `output_dir/filename.png`
 - SVG is written to `output_dir/SVG/filename.svg`
+- PDF is written to `output_dir/filename.pdf` when `save_pdf=True`
+- Metadata is written to `output_dir/filename.json` when `save_metadata=True`
+
+Figures are saved whenever `output_dir` and `filename` are provided, including when
+`return_fig=True`.
 
 ## Public API
 
@@ -121,9 +128,20 @@ The package exports these plotting functions:
 | `plot_scatter` | Multiple scatter series, optional linear regression fit, R2 labels, colorbar support |
 | `plot_histogram` | Multiple distributions, configurable bins/stat, optional KDE, mean/std labels, reference lines |
 | `plot_bar` | Single-axis bar plots with custom positions, widths, SEM error bars, annotations |
+| `plot_grouped_bar` | Grouped bars from category-to-series mappings |
+| `plot_stacked_bar` | Stacked or normalized stacked bars from category-to-series mappings |
 | `plot_dual_axis_bar` | Bar plots split across left/right y-axes |
 | `plot_heatmap` | Seaborn heatmaps with optional annotations, colorbar, bounds, colormap, tick rotation |
+| `plot_correlation_heatmap` | Correlation-matrix heatmaps with optional triangular masking |
+| `plot_box` | Box plots for grouped distributions |
+| `plot_violin` | Violin plots for grouped distributions |
+| `plot_pie` | Pie and donut charts |
+| `plot_area` | Filled area plots with optional stacking |
+| `plot_hexbin` | Hexbin / 2D density plots |
+| `plot_contour` | Filled or line contour plots |
+| `plot_timeline` | Event timelines with grouped lanes |
 | `create_empty_figure` | Create a blank Matplotlib figure |
+| `create_subplots_figure` | Compose axes callbacks into a multi-panel subplot figure |
 | `draw_figures_grid` | Compose multiple figures into a grid-like combined figure |
 
 The main config dataclasses are:
@@ -140,6 +158,8 @@ The main config dataclasses are:
 | `ReferenceLineSpec` | Vertical/horizontal reference line style |
 | `LineSpec` | Groups vertical and horizontal reference lines |
 | `ColorbarConfig` | Scatter colorbar settings |
+| `ShadedRegionSpec` | Highlight x-ranges on line plots |
+| `SignificanceBracketSpec` | Bracket annotations for bar plots |
 
 ## Examples
 
@@ -150,13 +170,38 @@ uv run python Examples/line_example.py
 uv run python Examples/scatter_example.py
 uv run python Examples/hist_example.py
 uv run python Examples/bar_example.py
+uv run python Examples/grouped_bar_example.py
+uv run python Examples/stacked_bar_example.py
+uv run python Examples/dual_axis_bar_example.py
 uv run python Examples/heatmap_example.py
+uv run python Examples/correlation_heatmap_example.py
+uv run python Examples/box_example.py
+uv run python Examples/violin_example.py
+uv run python Examples/pie_example.py
+uv run python Examples/area_example.py
+uv run python Examples/hexbin_example.py
+uv run python Examples/contour_example.py
+uv run python Examples/timeline_example.py
+uv run python Examples/subplots_example.py
 uv run python Examples/layout_grid_example.py
 ```
 
 Each script writes PNG and SVG outputs under `showcase_outputs/`.
 `layout_grid_example.py` reuses the individual example figure creation functions and
 passes their returned figures into `draw_figures_grid`.
+The newer plot types each have their own dedicated example script following the same
+`create_*_figure` plus `main()` pattern as the original examples.
+
+## Extended Parameterization
+
+Newer plot families expose the same style/config pattern as the original plots:
+
+- Distribution plots support custom positions, tick labels, widths, means, medians, quantiles, outliers, orientation, grids, and limits.
+- Pie plots support donut width, explode offsets, shadows, label and percent distances, text/wedge properties, and optional legends.
+- Area plots support stacking, baselines, fill alpha, ticks, limits, annotations, reference lines, and shaded regions.
+- Hexbin and contour plots support colorbar labels, ticks, limits, explicit ranges, alpha, reference lines, and annotations.
+- Timeline plots support lane labels, marker sizes, event labels, lane spans, ticks, limits, and reference lines.
+- Subplot helpers support panel callbacks, shared axes, panel labels, figure titles, spacing, and normal output saving.
 
 ### Scatter With Regression
 

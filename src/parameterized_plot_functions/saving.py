@@ -1,5 +1,6 @@
 """Figure saving and finalization helpers."""
 
+import json
 import os
 
 import matplotlib.pyplot as plt
@@ -29,13 +30,27 @@ def save_figure(fig: Figure, output_config: OutputConfig) -> None:
 
     if output_config.save_png:
         png_path = os.path.join(output_config.output_dir, f"{output_config.filename}.png")
-        fig.savefig(png_path, dpi=output_config.dpi, bbox_inches="tight")
+        fig.savefig(
+            png_path,
+            dpi=output_config.dpi,
+            bbox_inches="tight",
+            transparent=output_config.transparent,
+        )
 
     if output_config.save_svg:
         svg_dir = os.path.join(output_config.output_dir, "SVG")
         os.makedirs(svg_dir, exist_ok=True)
         svg_path = os.path.join(svg_dir, f"{output_config.filename}.svg")
-        fig.savefig(svg_path, format="svg", bbox_inches="tight")
+        fig.savefig(svg_path, format="svg", bbox_inches="tight", transparent=output_config.transparent)
+
+    if output_config.save_pdf:
+        pdf_path = os.path.join(output_config.output_dir, f"{output_config.filename}.pdf")
+        fig.savefig(pdf_path, format="pdf", bbox_inches="tight", transparent=output_config.transparent)
+
+    if output_config.save_metadata and output_config.metadata is not None:
+        metadata_path = os.path.join(output_config.output_dir, f"{output_config.filename}.json")
+        with open(metadata_path, "w", encoding="utf-8") as file:
+            json.dump(output_config.metadata, file, indent=2)
 
 
 def finalize_figure(
@@ -69,8 +84,7 @@ def finalize_figure(
     )
     fig.tight_layout(pad=figure_style.tight_layout_pad)
 
-    if not output_config.return_fig:
-        save_figure(fig, output_config)
+    save_figure(fig, output_config)
 
     if figure_style.show_figure:        
         plt.show()

@@ -3,11 +3,15 @@
 import matplotlib.gridspec as gridspec
 import matplotlib.pyplot as plt
 import numpy as np
+from collections.abc import Callable
+
+from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 
 from .configs import AnnotationSpec, FigureStyle, OutputConfig
 from .annotations import apply_annotations
 from .saving import save_figure
+from .style.themes import apply_theme
 
 
 def create_empty_figure(figure_size: tuple[float, float] = (10, 8)) -> Figure:
@@ -141,3 +145,81 @@ def draw_figures_grid(
         plt.close(combined_fig)
 
     return combined_fig if output_config.return_fig else None
+
+
+def create_subplots_figure(
+    plotters: list[Callable[[Axes], None]],
+    rows: int,
+    cols: int,
+    figure_style: FigureStyle | None = None,
+    output_config: OutputConfig | None = None,
+    panel_labels: list[str] | None = None,
+    sharex: bool = False,
+    sharey: bool = False,
+    title: str | None = None,
+    wspace: float | None = None,
+    hspace: float | None = None,
+) -> Figure | None:
+    """
+    Function purpose:
+        Create a multi-panel subplot figure from callbacks that draw on provided axes.
+
+    Args:
+        plotters: Functions that receive one Matplotlib axis and draw one panel.
+        rows: Number of subplot rows.
+        cols: Number of subplot columns.
+        figure_style: Optional figure-level styling configuration.
+        output_config: Optional output saving and return behavior.
+        panel_labels: Optional panel labels such as A, B, C.
+        sharex: Whether subplot panels share their x-axis.
+        sharey: Whether subplot panels share their y-axis.
+        title: Optional figure-level title.
+        wspace: Optional width spacing between subplots.
+        hspace: Optional height spacing between subplots.
+
+    Outputs:
+        The figure when ``output_config.return_fig`` is true, otherwise ``None``.
+    """
+    # Instantiate configs at call time so callers can omit boilerplate safely.
+    if figure_style is None:
+        figure_style = FigureStyle()
+    if output_config is None:
+        output_config = OutputConfig()
+
+    # Guard against silently dropping requested panels.
+    if len(plotters) > rows * cols:
+        raise ValueError("plotters cannot exceed rows * cols.")
+
+    # Disable interactive rendering and apply the requested style preset.
+    plt.ioff()
+    apply_theme(figure_style)
+
+    # Create the target subplot grid and flatten it for simple sequential filling.
+    fig, axes = plt.subplots(rows, cols, figsize=figure_style.figure_size, sharex=sharex, sharey=sharey)
+    axes_array = np.asarray(axes).reshape(-1)
+
+    # Let each callback draw into its assigned axis.
+    for index, ax in enumerate(axes_array):
+        if index < len(plotters):
+            plotters[index](ax)
+            if panel_labels is not None and index < len(panel_labels):
+                ax.text(0.0, 1.02, panel_labels[index], transform=ax.transAxes, fontweight="bold", va="bottom")
+        else:
+            ax.axis("off")
+
+    # Apply optional figure title and spacing controls.
+    if title is not None:
+        fig.suptitle(title, fontsize=figure_style.title_size, fontweight=figure_style.title_weight)
+    if wspace is not None or hspace is not None:
+        fig.subplots_adjust(wspace=wspace, hspace=hspace)
+
+    # Finalize layout, save outputs, and close or return the figure.
+    fig.tight_layout(pad=figure_style.tight_layout_pad)
+    save_figure(fig, output_config)
+
+    if figure_style.show_figure:
+        plt.show()
+    else:
+        plt.close(fig)
+
+    return fig if output_config.return_fig else None

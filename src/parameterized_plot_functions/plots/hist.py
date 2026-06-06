@@ -6,7 +6,6 @@ import matplotlib.patches as mpatches
 import matplotlib.pyplot as plt
 from matplotlib.figure import Figure
 import numpy as np
-import seaborn as sns
 # import diptest
 
 from ..annotations import apply_annotations
@@ -14,6 +13,7 @@ from ..axes import apply_axis_style, extend_y_axis_one_tick
 from ..configs import AnnotationSpec, AxisStyle, FigureStyle, LegendStyle, LineSpec, OutputConfig, SeriesStyle
 from ..legends import apply_patch_legend
 from ..saving import finalize_figure
+from ..style.themes import apply_theme
 
 
 def plot_histogram(
@@ -31,6 +31,9 @@ def plot_histogram(
     plot_kde: bool = False,
     plot_mean: bool = False,
     plot_std: bool = False,
+    cumulative: bool = False,
+    fitted_distribution: str | None = None,
+    percentile_markers: list[float] | None = None,
     perform_dip_test: bool = False,
     vertical_lines: list[float] | None = None,
     xlims: tuple[float, float] | None = None,
@@ -92,8 +95,8 @@ def plot_histogram(
 
     # Disable interactive rendering for batch/script usage.
     plt.ioff()
-    if figure_style.use_seaborn:
-        sns.set(style=figure_style.seaborn_style, font_scale=figure_style.seaborn_font_scale)
+    apply_theme(figure_style, axis_style)
+    import seaborn as sns
 
     # Build histograms and legend patch specs from the same style mapping.
     fig, ax = plt.subplots(figsize=figure_style.figure_size)
@@ -112,8 +115,21 @@ def plot_histogram(
             alpha=style.alpha,
             edgecolor="none",
             ax=ax,
+            cumulative=cumulative,
             line_kws={"linewidth": style.linewidth},
         )
+
+        if fitted_distribution == "normal":
+            mean = np.nanmean(values)
+            std = np.nanstd(values, ddof=1)
+            if std > 0:
+                x_pdf = np.linspace(np.nanmin(values), np.nanmax(values), 200)
+                y_pdf = (1 / (std * np.sqrt(2 * np.pi))) * np.exp(-0.5 * ((x_pdf - mean) / std) ** 2)
+                ax.plot(x_pdf, y_pdf, color=style.color, linestyle="--", linewidth=style.linewidth)
+
+        if percentile_markers is not None:
+            for percentile in percentile_markers:
+                ax.axvline(np.nanpercentile(values, percentile), color=style.color, linestyle=":", linewidth=1.5)
 
         # Optional summary statistics are appended to the legend label.
         label = style.label if style.label is not None else key

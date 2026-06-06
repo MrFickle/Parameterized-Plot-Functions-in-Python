@@ -3,7 +3,6 @@
 import matplotlib.pyplot as plt
 from matplotlib.figure import Figure
 import numpy as np
-import seaborn as sns
 from sklearn.linear_model import LinearRegression
 from sklearn.metrics import r2_score
 
@@ -21,6 +20,7 @@ from ..configs import (
 )
 from ..legends import apply_line_legend
 from ..saving import finalize_figure
+from ..style.themes import apply_theme
 
 
 def plot_scatter(
@@ -44,6 +44,11 @@ def plot_scatter(
     line_spec: LineSpec | None = None,
     do_linear_reg_fit: bool = False,
     plot_r2_score: bool = False,
+    polynomial_degree: int | None = None,
+    regression_confidence_band: bool = False,
+    point_labels: dict[str, list[str]] | None = None,
+    jitter: float = 0.0,
+    size_values: dict[str, np.ndarray] | None = None,
     colorbar_config: ColorbarConfig | None = None,
     color_values: dict[str, np.ndarray] | None = None,
 ) -> Figure | None:
@@ -93,8 +98,7 @@ def plot_scatter(
 
     # Disable interactive rendering for batch/script usage.
     plt.ioff()
-    if figure_style.use_seaborn:
-        sns.set(style=figure_style.seaborn_style, font_scale=figure_style.seaborn_font_scale)
+    apply_theme(figure_style, axis_style)
 
     fig, ax = plt.subplots(figsize=figure_style.figure_size)
     updated_styles = {}
@@ -106,8 +110,18 @@ def plot_scatter(
     for key in x_series:
         x = np.asarray(x_series[key])
         y = np.asarray(y_series[key])
+        if jitter > 0:
+            rng = np.random.default_rng(0)
+            x = x + rng.normal(0, jitter, size=x.shape)
+            y = y + rng.normal(0, jitter, size=y.shape)
         style = series_styles.get(key, SeriesStyle(label=key))
         label = style.label if style.label is not None else key
+        marker_sizes = (style.markersize * style.m_size_factor) ** 2
+        if size_values is not None and key in size_values:
+            sizes = np.asarray(size_values[key], dtype=float)
+            size_min = np.nanmin(sizes)
+            size_range = np.nanmax(sizes) - size_min
+            marker_sizes = 30 + 170 * (sizes - size_min) / size_range if size_range > 0 else np.full_like(sizes, 80)
 
         # Color values switch the series from fixed color to colormap rendering.
         series_color_values = None
@@ -121,7 +135,7 @@ def plot_scatter(
                 c=series_color_values,
                 cmap=colorbar_config.colormap,
                 alpha=style.alpha,
-                s=(style.markersize * style.m_size_factor) ** 2,
+                s=marker_sizes,
                 marker=style.marker if style.marker is not None else "o",
                 linewidth=0.8,
             )
@@ -134,7 +148,7 @@ def plot_scatter(
                 y,
                 color=style.color,
                 alpha=style.alpha,
-                s=(style.markersize * style.m_size_factor) ** 2,
+                s=marker_sizes,
                 marker=style.marker if style.marker is not None else "o",
                 linewidth=0.8,
             )
@@ -147,7 +161,21 @@ def plot_scatter(
 
             if plot_r2_score:
                 r2 = r2_score(y, y_pred)
-                label = f"{label}, R²={r2:.2f}"
+                label = f"{label}, R2={r2:.2f}"
+
+            if regression_confidence_band:
+                residual_std = np.std(y - y_pred, ddof=1)
+                ax.fill_between(x, y_pred - 1.96 * residual_std, y_pred + 1.96 * residual_std, color=style.color, alpha=0.15)
+
+        if polynomial_degree is not None and polynomial_degree > 1:
+            coefficients = np.polyfit(x, y, polynomial_degree)
+            poly = np.poly1d(coefficients)
+            x_fit = np.linspace(np.nanmin(x), np.nanmax(x), 200)
+            ax.plot(x_fit, poly(x_fit), color=style.color, linewidth=style.linewidth, linestyle="--")
+
+        if point_labels is not None and key in point_labels:
+            for x_value, y_value, point_label in zip(x, y, point_labels[key]):
+                ax.text(x_value, y_value, point_label, fontsize=max(axis_style.xtick_size - 2, 8))
 
         # Legend labels may be augmented with regression diagnostics.
         updated_styles[key] = SeriesStyle(

@@ -1,7 +1,7 @@
 """Configuration dataclasses used by the plotting functions."""
 
 from dataclasses import dataclass, field
-from typing import Optional
+from typing import Any, Literal, Optional
 
 
 @dataclass
@@ -37,6 +37,7 @@ class FigureStyle:
     use_seaborn: bool = True
     seaborn_style: str = "ticks"
     seaborn_font_scale: float = 1.5
+    theme: Literal["default", "publication", "presentation", "minimal", "dark", "paper_bw"] = "default"
 
 
 @dataclass
@@ -47,8 +48,37 @@ class OutputConfig:
     filename: Optional[str] = None
     save_svg: bool = True
     save_png: bool = True
+    save_pdf: bool = False
     dpi: int = 300
     return_fig: bool = False
+    transparent: bool = False
+    metadata: dict[str, Any] | None = None
+    save_metadata: bool = False
+
+
+@dataclass
+class ShadedRegionSpec:
+    """Vertical x-range shading used to highlight a plot region."""
+
+    xmin: float
+    xmax: float
+    color: str = "gray"
+    alpha: float = 0.2
+    label: Optional[str] = None
+
+
+@dataclass
+class SignificanceBracketSpec:
+    """Bracket annotation between two x positions."""
+
+    x1: float
+    x2: float
+    y: float
+    text: str
+    height: float = 0.05
+    color: str = "black"
+    linewidth: float = 1.5
+    fontsize: int = 12
 
 
 @dataclass
