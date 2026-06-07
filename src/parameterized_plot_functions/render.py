@@ -9,9 +9,22 @@ from typing import Any
 
 import numpy as np
 
-from .configs import AnnotationSpec, AxisStyle, FigureStyle, LegendStyle, OutputConfig, SeriesStyle, TextStyle
+from .configs import (
+    AnnotationSpec,
+    AxisStyle,
+    ColorbarConfig,
+    FigureStyle,
+    LegendStyle,
+    LineSpec,
+    OutputConfig,
+    ReferenceLineSpec,
+    SeriesStyle,
+    ShadedRegionSpec,
+    SignificanceBracketSpec,
+    TextStyle,
+)
 from .plots.area import plot_area
-from .plots.bar import plot_bar, plot_grouped_bar, plot_stacked_bar
+from .plots.bar import plot_bar, plot_dual_axis_bar, plot_grouped_bar, plot_stacked_bar
 from .plots.density import plot_contour, plot_hexbin
 from .plots.distribution import plot_box, plot_violin
 from .plots.heatmap import plot_correlation_heatmap, plot_heatmap
@@ -20,7 +33,7 @@ from .plots.line import plot_line
 from .plots.pie import plot_pie
 from .plots.scatter import plot_scatter
 from .plots.timeline import plot_timeline
-from .specs import RenderResult, validate_plot_spec
+from .specs import CommonPlotSpec, RenderResult, parse_plot_spec
 
 
 def load_plot_spec_file(path: str | Path) -> dict[str, Any]:
@@ -72,7 +85,7 @@ def render_plot_file(path: str | Path, dataframes: dict[str, Any] | None = None)
     return render_plot(spec, dataframes=dataframes)
 
 
-def render_plot(spec: dict[str, Any], dataframes: dict[str, Any] | None = None) -> RenderResult:
+def render_plot(spec: dict[str, Any] | CommonPlotSpec, dataframes: dict[str, Any] | None = None) -> RenderResult:
     """
     Function purpose:
         Render a validated PlotSpec dictionary using the existing plotting functions.
@@ -85,7 +98,8 @@ def render_plot(spec: dict[str, Any], dataframes: dict[str, Any] | None = None) 
         Structured render result containing generated paths and normalized spec.
     """
     # Validate and normalize the spec before using any renderer.
-    normalized = validate_plot_spec(spec)
+    spec_model = parse_plot_spec(spec)
+    normalized = spec_model.model_dump(mode="json", exclude_none=True)
 
     # Build shared configs from optional style, legend, output, and annotation sections.
     figure_style = _build_figure_style(normalized.get("style", {}))
@@ -93,6 +107,8 @@ def render_plot(spec: dict[str, Any], dataframes: dict[str, Any] | None = None) 
     legend_style = _build_legend_style(normalized.get("legend", {}))
     output_config = _build_output_config(normalized)
     annotations = _build_annotations(normalized.get("annotations", []))
+    series_styles = _build_series_styles(normalized.get("series_styles"))
+    line_spec = _build_line_spec(normalized.get("line_spec"))
 
     # Resolve inline, CSV, or DataFrame data into renderer-friendly structures.
     resolved_data = _resolve_data(normalized["data"], dataframes=dataframes)
@@ -101,51 +117,407 @@ def render_plot(spec: dict[str, Any], dataframes: dict[str, Any] | None = None) 
     plot_type = normalized["plot_type"]
     if plot_type == "line":
         series = _xy_series(resolved_data)
-        plot_line(series["x"], series["y"], normalized["xlabel"], normalized["ylabel"], normalized["title"], figure_style=figure_style, axis_style=axis_style, legend_style=legend_style, output_config=output_config, series_styles=_series_styles(series["x"]), annotations=annotations)
+        plot_line(
+            series["x"],
+            series["y"],
+            normalized["xlabel"],
+            normalized["ylabel"],
+            normalized["title"],
+            figure_style=figure_style,
+            axis_style=axis_style,
+            legend_style=legend_style,
+            output_config=output_config,
+            series_styles=series_styles or _series_styles(series["x"]),
+            yerr_series=_array_mapping(normalized.get("yerr_series")),
+            ci_series=_ci_mapping(normalized.get("ci_series")),
+            use_fill_between=bool(_option(normalized, "use_fill_between", True)),
+            step_where=normalized.get("step_where"),
+            rolling_window=normalized.get("rolling_window"),
+            xlims=_tuple_or_none(normalized.get("xlims")),
+            ylims=_tuple_or_none(normalized.get("ylims")),
+            xticks=normalized.get("xticks"),
+            yticks=normalized.get("yticks"),
+            xtick_labels=normalized.get("xtick_labels"),
+            ytick_labels=normalized.get("ytick_labels"),
+            annotations=annotations,
+            line_spec=line_spec,
+            shaded_regions=_build_shaded_regions(normalized.get("shaded_regions")),
+            endpoint_labels=bool(_option(normalized, "endpoint_labels", False)),
+            use_mask=bool(_option(normalized, "use_mask", True)),
+            errorbar_capsize=float(_option(normalized, "errorbar_capsize", 4)),
+            errorbar_elinewidth=float(_option(normalized, "errorbar_elinewidth", 2)),
+            errorbar_capthick=float(_option(normalized, "errorbar_capthick", 2)),
+            use_line_color_for_error=bool(_option(normalized, "use_line_color_for_error", False)),
+            rotate_xticks=bool(_option(normalized, "rotate_xticks", False)),
+            plot_minor_ticks=bool(_option(normalized, "plot_minor_ticks", False)),
+            extend_y_one_tick=bool(_option(normalized, "extend_y_one_tick", False)),
+        )
     elif plot_type == "scatter":
         series = _xy_series(resolved_data)
-        plot_scatter(series["x"], series["y"], normalized["xlabel"], normalized["ylabel"], normalized["title"], figure_style=figure_style, axis_style=axis_style, legend_style=legend_style, output_config=output_config, series_styles=_series_styles(series["x"]), annotations=annotations)
+        plot_scatter(
+            series["x"],
+            series["y"],
+            normalized["xlabel"],
+            normalized["ylabel"],
+            normalized["title"],
+            figure_style=figure_style,
+            axis_style=axis_style,
+            legend_style=legend_style,
+            output_config=output_config,
+            series_styles=series_styles or _series_styles(series["x"]),
+            xlims=_tuple_or_none(normalized.get("xlims")),
+            ylims=_tuple_or_none(normalized.get("ylims")),
+            xticks=normalized.get("xticks"),
+            yticks=normalized.get("yticks"),
+            xtick_labels=normalized.get("xtick_labels"),
+            ytick_labels=normalized.get("ytick_labels"),
+            annotations=annotations,
+            line_spec=line_spec,
+            do_linear_reg_fit=bool(_option(normalized, "do_linear_reg_fit", False)),
+            plot_r2_score=bool(_option(normalized, "plot_r2_score", False)),
+            polynomial_degree=normalized.get("polynomial_degree"),
+            regression_confidence_band=bool(_option(normalized, "regression_confidence_band", False)),
+            point_labels=normalized.get("point_labels"),
+            jitter=float(_option(normalized, "jitter", 0.0)),
+            size_values=_array_mapping(normalized.get("size_values")),
+            colorbar_config=_build_colorbar_config(normalized.get("colorbar_config")),
+            color_values=_array_mapping(normalized.get("color_values")),
+        )
     elif plot_type == "area":
         area_data = _area_series(resolved_data)
-        plot_area(area_data["x"], area_data["y"], normalized["xlabel"], normalized["ylabel"], normalized["title"], figure_style=figure_style, axis_style=axis_style, legend_style=legend_style, output_config=output_config, series_styles=_series_styles(area_data["y"]), annotations=annotations, stacked=bool(normalized["options"].get("stacked", False)))
+        plot_area(
+            area_data["x"],
+            area_data["y"],
+            normalized["xlabel"],
+            normalized["ylabel"],
+            normalized["title"],
+            figure_style=figure_style,
+            axis_style=axis_style,
+            legend_style=legend_style,
+            output_config=output_config,
+            series_styles=series_styles or _series_styles(area_data["y"]),
+            annotations=annotations,
+            stacked=bool(_option(normalized, "stacked", False)),
+            baseline=float(_option(normalized, "baseline", 0.0)),
+            fill_alpha=normalized.get("fill_alpha"),
+            xlims=_tuple_or_none(normalized.get("xlims")),
+            ylims=_tuple_or_none(normalized.get("ylims")),
+            xticks=normalized.get("xticks"),
+            yticks=normalized.get("yticks"),
+            xtick_labels=normalized.get("xtick_labels"),
+            ytick_labels=normalized.get("ytick_labels"),
+            line_spec=line_spec,
+            shaded_regions=_build_shaded_regions(normalized.get("shaded_regions")),
+        )
     elif plot_type == "histogram":
         values = _value_series(resolved_data)
-        plot_histogram(values, normalized["options"].get("bins", 20), normalized["xlabel"], normalized["ylabel"], normalized["title"], figure_style=figure_style, axis_style=axis_style, legend_style=legend_style, output_config=output_config, series_styles=_series_styles(values), annotations=annotations, plot_kde=bool(normalized["options"].get("plot_kde", False)))
+        plot_histogram(
+            values,
+            _option(normalized, "bins", 20),
+            normalized["xlabel"],
+            normalized["ylabel"],
+            normalized["title"],
+            figure_style=figure_style,
+            axis_style=axis_style,
+            legend_style=legend_style,
+            output_config=output_config,
+            series_styles=series_styles or _series_styles(values),
+            hist_stat=str(_option(normalized, "hist_stat", "probability")),
+            plot_kde=bool(_option(normalized, "plot_kde", False)),
+            plot_mean=bool(_option(normalized, "plot_mean", False)),
+            plot_std=bool(_option(normalized, "plot_std", False)),
+            cumulative=bool(_option(normalized, "cumulative", False)),
+            fitted_distribution=normalized.get("fitted_distribution"),
+            percentile_markers=normalized.get("percentile_markers"),
+            perform_dip_test=bool(_option(normalized, "perform_dip_test", False)),
+            vertical_lines=normalized.get("vertical_lines"),
+            xlims=_tuple_or_none(normalized.get("xlims")),
+            ylims=_tuple_or_none(normalized.get("ylims")),
+            xticks=normalized.get("xticks"),
+            yticks=normalized.get("yticks"),
+            xtick_labels=normalized.get("xtick_labels"),
+            ytick_labels=normalized.get("ytick_labels"),
+            annotations=annotations,
+            line_spec=line_spec,
+            extend_y_one_tick=bool(_option(normalized, "extend_y_one_tick", False)),
+        )
     elif plot_type == "box":
         values = _value_series(resolved_data)
-        plot_box(values, normalized["xlabel"], normalized["ylabel"], normalized["title"], figure_style=figure_style, axis_style=axis_style, legend_style=legend_style, output_config=output_config, series_styles=_series_styles(values), annotations=annotations)
+        plot_box(
+            values,
+            normalized["xlabel"],
+            normalized["ylabel"],
+            normalized["title"],
+            figure_style=figure_style,
+            axis_style=axis_style,
+            legend_style=legend_style,
+            output_config=output_config,
+            series_styles=series_styles or _series_styles(values),
+            annotations=annotations,
+            show_means=bool(_option(normalized, "show_means", False)),
+            notch=bool(_option(normalized, "notch", False)),
+            show_outliers=bool(_option(normalized, "show_outliers", True)),
+            orientation=str(_option(normalized, "orientation", "vertical")),
+            positions=normalized.get("positions"),
+            tick_labels=normalized.get("tick_labels"),
+            widths=_option(normalized, "widths", 0.5),
+            box_alpha=normalized.get("box_alpha"),
+            mean_marker=str(_option(normalized, "mean_marker", "^")),
+            median_color=str(_option(normalized, "median_color", "black")),
+            grid_axis=str(_option(normalized, "grid_axis", "none")),
+            xlims=_tuple_or_none(normalized.get("xlims")),
+            ylims=_tuple_or_none(normalized.get("ylims")),
+        )
     elif plot_type == "violin":
         values = _value_series(resolved_data)
-        plot_violin(values, normalized["xlabel"], normalized["ylabel"], normalized["title"], figure_style=figure_style, axis_style=axis_style, legend_style=legend_style, output_config=output_config, series_styles=_series_styles(values), annotations=annotations)
+        plot_violin(
+            values,
+            normalized["xlabel"],
+            normalized["ylabel"],
+            normalized["title"],
+            figure_style=figure_style,
+            axis_style=axis_style,
+            legend_style=legend_style,
+            output_config=output_config,
+            series_styles=series_styles or _series_styles(values),
+            annotations=annotations,
+            show_means=bool(_option(normalized, "show_means", False)),
+            show_extrema=bool(_option(normalized, "show_extrema", True)),
+            show_medians=bool(_option(normalized, "show_medians", True)),
+            orientation=str(_option(normalized, "orientation", "vertical")),
+            positions=normalized.get("positions"),
+            tick_labels=normalized.get("tick_labels"),
+            widths=float(_option(normalized, "widths", 0.5)),
+            violin_alpha=normalized.get("violin_alpha"),
+            quantiles=normalized.get("quantiles"),
+            grid_axis=str(_option(normalized, "grid_axis", "none")),
+            xlims=_tuple_or_none(normalized.get("xlims")),
+            ylims=_tuple_or_none(normalized.get("ylims")),
+        )
     elif plot_type == "bar":
         values = _scalar_values(resolved_data)
         positions = {key: float(index) for index, key in enumerate(values)}
         widths = {key: 0.7 for key in values}
-        plot_bar(values, normalized["xlabel"], normalized["ylabel"], normalized["title"], positions, widths, figure_style=figure_style, axis_style=axis_style, legend_style=legend_style, output_config=output_config, series_styles=_series_styles(values), annotations=annotations, xticks=list(positions.values()), xtick_labels=list(values.keys()), value_labels=bool(normalized["options"].get("value_labels", False)))
+        positions = normalized.get("x_positions") or positions
+        widths = normalized.get("bar_widths") or widths
+        plot_bar(
+            values,
+            normalized["xlabel"],
+            normalized["ylabel"],
+            normalized["title"],
+            positions,
+            widths,
+            figure_style=figure_style,
+            axis_style=axis_style,
+            legend_style=legend_style,
+            output_config=output_config,
+            series_styles=series_styles or _series_styles(values),
+            annotations=annotations,
+            sem_values=normalized.get("sem_values"),
+            xticks=normalized.get("xticks", list(positions.values())),
+            yticks=normalized.get("yticks"),
+            xtick_labels=normalized.get("xtick_labels", list(values.keys())),
+            ytick_labels=normalized.get("ytick_labels"),
+            xlims=_tuple_or_none(normalized.get("xlims")),
+            ylims=_tuple_or_none(normalized.get("ylims")),
+            edgecolor=normalized.get("edgecolor"),
+            horizontal=bool(_option(normalized, "horizontal", False)),
+            sort_values=bool(_option(normalized, "sort_values", False)),
+            value_labels=bool(_option(normalized, "value_labels", False)),
+            significance_brackets=_build_significance_brackets(normalized.get("significance_brackets")),
+            rotate_xticks=bool(_option(normalized, "rotate_xticks", False)),
+            plot_minor_ticks=bool(_option(normalized, "plot_minor_ticks", False)),
+            extend_y_one_tick=bool(_option(normalized, "extend_y_one_tick", False)),
+        )
+    elif plot_type == "dual_axis_bar":
+        values = _scalar_values(resolved_data)
+        positions = normalized.get("x_positions") or {key: float(index) for index, key in enumerate(values)}
+        widths = normalized.get("bar_widths") or {key: 0.7 for key in values}
+        axis_assignment = normalized.get("axis_assignment") or {key: "left" for key in values}
+        plot_dual_axis_bar(
+            values,
+            normalized["xlabel"],
+            str(_option(normalized, "ylabel_left", normalized.get("ylabel", ""))),
+            str(_option(normalized, "ylabel_right", "")),
+            normalized["title"],
+            positions,
+            widths,
+            axis_assignment,
+            figure_style=figure_style,
+            axis_style=axis_style,
+            legend_style=legend_style,
+            output_config=output_config,
+            series_styles=series_styles or _series_styles(values),
+            xticks=normalized.get("xticks", list(positions.values())),
+            xtick_labels=normalized.get("xtick_labels", list(values.keys())),
+            yticks_left=normalized.get("yticks_left"),
+            yticks_right=normalized.get("yticks_right"),
+            ylims_left=_tuple_or_none(normalized.get("ylims_left")),
+            ylims_right=_tuple_or_none(normalized.get("ylims_right")),
+            sem_values=normalized.get("sem_values"),
+            edgecolor=normalized.get("edgecolor"),
+            rotate_xticks=bool(_option(normalized, "rotate_xticks", False)),
+            plot_minor_ticks=bool(_option(normalized, "plot_minor_ticks", False)),
+            extend_y_one_tick=bool(_option(normalized, "extend_y_one_tick", False)),
+            annotations=annotations,
+        )
     elif plot_type == "pie":
         values = _scalar_values(resolved_data)
-        plot_pie(values, normalized["title"], figure_style=figure_style, legend_style=legend_style, output_config=output_config, series_styles=_series_styles(values), annotations=annotations, show_legend=bool(normalized["options"].get("show_legend", True)))
+        plot_pie(
+            values,
+            normalized["title"],
+            figure_style=figure_style,
+            legend_style=legend_style,
+            output_config=output_config,
+            series_styles=series_styles or _series_styles(values),
+            annotations=annotations,
+            autopct=normalized.get("autopct", "%1.1f%%"),
+            startangle=float(_option(normalized, "startangle", 90)),
+            donut_width=normalized.get("donut_width"),
+            explode=normalized.get("explode"),
+            shadow=bool(_option(normalized, "shadow", False)),
+            labeldistance=float(_option(normalized, "labeldistance", 1.1)),
+            pctdistance=float(_option(normalized, "pctdistance", 0.6)),
+            counterclock=bool(_option(normalized, "counterclock", True)),
+            normalize=bool(_option(normalized, "normalize", True)),
+            textprops=normalized.get("textprops"),
+            wedgeprops=normalized.get("wedgeprops"),
+            show_legend=bool(_option(normalized, "show_legend", False)),
+            legend_loc=str(_option(normalized, "legend_loc", "best")),
+        )
     elif plot_type == "grouped_bar":
         values = _nested_values(resolved_data)
-        plot_grouped_bar(values, normalized["xlabel"], normalized["ylabel"], normalized["title"], figure_style=figure_style, axis_style=axis_style, legend_style=legend_style, output_config=output_config, annotations=annotations, value_labels=bool(normalized["options"].get("value_labels", False)))
+        plot_grouped_bar(values, normalized["xlabel"], normalized["ylabel"], normalized["title"], figure_style=figure_style, axis_style=axis_style, legend_style=legend_style, output_config=output_config, series_styles=series_styles, annotations=annotations, value_labels=bool(_option(normalized, "value_labels", False)), group_gap=float(_option(normalized, "group_gap", 1.0)), bar_width=float(_option(normalized, "bar_width", 0.8)))
     elif plot_type == "stacked_bar":
         values = _nested_values(resolved_data)
-        plot_stacked_bar(values, normalized["xlabel"], normalized["ylabel"], normalized["title"], figure_style=figure_style, axis_style=axis_style, legend_style=legend_style, output_config=output_config, annotations=annotations, normalize=bool(normalized["options"].get("normalize", False)), value_labels=bool(normalized["options"].get("value_labels", False)))
+        plot_stacked_bar(values, normalized["xlabel"], normalized["ylabel"], normalized["title"], figure_style=figure_style, axis_style=axis_style, legend_style=legend_style, output_config=output_config, series_styles=series_styles, annotations=annotations, normalize=bool(_option(normalized, "normalize", False)), value_labels=bool(_option(normalized, "value_labels", False)))
     elif plot_type == "heatmap":
         matrix = _matrix_values(resolved_data)
-        plot_heatmap(matrix, normalized["xlabel"], normalized["ylabel"], normalized["title"], figure_style=figure_style, axis_style=axis_style, legend_style=legend_style, output_config=output_config, annotations=annotations, colorbar=bool(normalized["options"].get("colorbar", True)), annotate=bool(normalized["options"].get("annotate", True)))
+        plot_heatmap(
+            matrix,
+            normalized["xlabel"],
+            normalized["ylabel"],
+            normalized["title"],
+            figure_style=figure_style,
+            axis_style=axis_style,
+            legend_style=legend_style,
+            output_config=output_config,
+            annotations=annotations,
+            annotate=bool(_option(normalized, "annotate", True)),
+            colorbar=bool(_option(normalized, "colorbar", False)),
+            vmin=normalized.get("vmin"),
+            vmax=normalized.get("vmax"),
+            cmap=str(_option(normalized, "cmap", "rocket")),
+            rotate_ticks=bool(_option(normalized, "rotate_ticks", False)),
+            xtick_labels=normalized.get("xtick_labels"),
+            ytick_labels=normalized.get("ytick_labels"),
+            triangular_mask=normalized.get("triangular_mask"),
+            center=normalized.get("center"),
+            normalize=normalized.get("normalize"),
+            auto_text_contrast=bool(_option(normalized, "auto_text_contrast", False)),
+        )
     elif plot_type == "correlation_heatmap":
         matrix = _matrix_values(resolved_data)
-        plot_correlation_heatmap(matrix, title=normalized["title"], labels=resolved_data.get("labels"), figure_style=figure_style, axis_style=axis_style, legend_style=legend_style, output_config=output_config, annotations=annotations)
+        plot_correlation_heatmap(
+            matrix,
+            title=normalized["title"],
+            labels=normalized.get("labels") or resolved_data.get("labels"),
+            figure_style=figure_style,
+            axis_style=axis_style,
+            legend_style=legend_style,
+            output_config=output_config,
+            annotations=annotations,
+            annotate=bool(_option(normalized, "annotate", True)),
+            colorbar=bool(_option(normalized, "colorbar", True)),
+            triangular_mask=normalized.get("triangular_mask", "upper"),
+            cmap=str(_option(normalized, "cmap", "vlag")),
+        )
     elif plot_type == "hexbin":
         xy = _flat_xy(resolved_data)
-        plot_hexbin(xy["x"], xy["y"], normalized["xlabel"], normalized["ylabel"], normalized["title"], figure_style=figure_style, axis_style=axis_style, legend_style=legend_style, output_config=output_config, annotations=annotations, colorbar_label=normalized["options"].get("colorbar_label"))
+        plot_hexbin(
+            xy["x"],
+            xy["y"],
+            normalized["xlabel"],
+            normalized["ylabel"],
+            normalized["title"],
+            figure_style=figure_style,
+            axis_style=axis_style,
+            legend_style=legend_style,
+            output_config=output_config,
+            annotations=annotations,
+            gridsize=int(_option(normalized, "gridsize", 30)),
+            cmap=str(_option(normalized, "cmap", "viridis")),
+            mincnt=normalized.get("mincnt", 1),
+            colorbar=bool(_option(normalized, "colorbar", True)),
+            reduce_function=_reduce_function(str(_option(normalized, "reduce_function", "mean"))),
+            values=np.asarray(normalized["values"], dtype=float) if "values" in normalized else None,
+            xlims=_tuple_or_none(normalized.get("xlims")),
+            ylims=_tuple_or_none(normalized.get("ylims")),
+            xticks=normalized.get("xticks"),
+            yticks=normalized.get("yticks"),
+            xtick_labels=normalized.get("xtick_labels"),
+            ytick_labels=normalized.get("ytick_labels"),
+            colorbar_label=normalized.get("colorbar_label"),
+            extent=_tuple_or_none(normalized.get("extent")),
+            bins=normalized.get("bins"),
+            linewidths=float(_option(normalized, "linewidths", 0.0)),
+            alpha=float(_option(normalized, "alpha", 1.0)),
+            line_spec=line_spec,
+        )
     elif plot_type == "contour":
         grid = _contour_values(resolved_data)
-        plot_contour(grid["x"], grid["y"], grid["z"], normalized["xlabel"], normalized["ylabel"], normalized["title"], figure_style=figure_style, axis_style=axis_style, legend_style=legend_style, output_config=output_config, annotations=annotations, colorbar_label=normalized["options"].get("colorbar_label"))
+        plot_contour(
+            grid["x"],
+            grid["y"],
+            grid["z"],
+            normalized["xlabel"],
+            normalized["ylabel"],
+            normalized["title"],
+            figure_style=figure_style,
+            axis_style=axis_style,
+            legend_style=legend_style,
+            output_config=output_config,
+            annotations=annotations,
+            levels=_option(normalized, "levels", 10),
+            filled=bool(_option(normalized, "filled", True)),
+            cmap=str(_option(normalized, "cmap", "viridis")),
+            colorbar=bool(_option(normalized, "colorbar", True)),
+            label_contours=bool(_option(normalized, "label_contours", False)),
+            xlims=_tuple_or_none(normalized.get("xlims")),
+            ylims=_tuple_or_none(normalized.get("ylims")),
+            xticks=normalized.get("xticks"),
+            yticks=normalized.get("yticks"),
+            xtick_labels=normalized.get("xtick_labels"),
+            ytick_labels=normalized.get("ytick_labels"),
+            colorbar_label=normalized.get("colorbar_label"),
+            linewidths=float(_option(normalized, "linewidths", 1.5)),
+            alpha=float(_option(normalized, "alpha", 1.0)),
+            vmin=normalized.get("vmin"),
+            vmax=normalized.get("vmax"),
+            line_spec=line_spec,
+        )
     elif plot_type == "timeline":
         events = _timeline_values(resolved_data)
-        plot_timeline(events["events"], normalized["xlabel"], normalized["title"], figure_style=figure_style, axis_style=axis_style, legend_style=legend_style, output_config=output_config, annotations=annotations, labels=events.get("labels"))
+        plot_timeline(
+            events["events"],
+            normalized["xlabel"],
+            normalized["title"],
+            figure_style=figure_style,
+            axis_style=axis_style,
+            legend_style=legend_style,
+            output_config=output_config,
+            series_styles=series_styles,
+            annotations=annotations,
+            labels=normalized.get("labels") or events.get("labels"),
+            lane_labels=normalized.get("lane_labels"),
+            marker_size=float(_option(normalized, "marker_size", 80.0)),
+            draw_lane_lines=bool(_option(normalized, "draw_lane_lines", True)),
+            label_offset=float(_option(normalized, "label_offset", 0.08)),
+            xlims=_tuple_or_none(normalized.get("xlims")),
+            xticks=normalized.get("xticks"),
+            xtick_labels=normalized.get("xtick_labels"),
+            line_spec=line_spec,
+        )
     else:
         raise ValueError(f"Unsupported plot_type '{plot_type}'.")
 
@@ -155,32 +527,21 @@ def render_plot(spec: dict[str, Any], dataframes: dict[str, Any] | None = None) 
 
 def _build_figure_style(style: dict[str, Any]) -> FigureStyle:
     """Build a FigureStyle from a spec dictionary."""
-    return FigureStyle(
-        figure_size=tuple(style.get("figure_size", (10, 8))),
-        title_size=int(style.get("title_size", 18)),
-        theme=style.get("theme", "default"),
-    )
+    if "figure_size" in style:
+        style = {**style, "figure_size": tuple(style["figure_size"])}
+    return FigureStyle(**style)
 
 
 def _build_axis_style(axis: dict[str, Any]) -> AxisStyle:
     """Build an AxisStyle from a spec dictionary."""
-    return AxisStyle(
-        xlabel_size=int(axis.get("xlabel_size", 18)),
-        ylabel_size=int(axis.get("ylabel_size", 18)),
-        xtick_size=int(axis.get("xtick_size", 14)),
-        ytick_size=int(axis.get("ytick_size", 14)),
-    )
+    return AxisStyle(**axis)
 
 
 def _build_legend_style(legend: dict[str, Any]) -> LegendStyle:
     """Build a LegendStyle from a spec dictionary."""
-    return LegendStyle(
-        enabled=bool(legend.get("enabled", True)),
-        loc=legend.get("loc", "best"),
-        ncol=int(legend.get("ncol", 1)),
-        frameon=bool(legend.get("frameon", False)),
-        fontsize=int(legend.get("fontsize", 14)),
-    )
+    if "bbox_to_anchor" in legend and legend["bbox_to_anchor"] is not None:
+        legend = {**legend, "bbox_to_anchor": tuple(legend["bbox_to_anchor"])}
+    return LegendStyle(**legend)
 
 
 def _build_output_config(spec: dict[str, Any]) -> OutputConfig:
@@ -189,7 +550,7 @@ def _build_output_config(spec: dict[str, Any]) -> OutputConfig:
     formats = output.get("formats", ["png", "svg"])
     return OutputConfig(
         output_dir=output.get("output_dir", "plot_outputs"),
-        filename=output.get("filename", spec["plot_type"]),
+        filename=output.get("filename") or spec["plot_type"],
         save_png="png" in formats,
         save_svg="svg" in formats,
         save_pdf="pdf" in formats,
@@ -214,6 +575,80 @@ def _build_annotations(annotation_specs: list[dict[str, Any]]) -> list[Annotatio
             )
         )
     return annotations
+
+
+def _build_series_styles(style_specs: dict[str, dict[str, Any]] | None) -> dict[str, SeriesStyle] | None:
+    """Build SeriesStyle objects from plain dictionaries."""
+    if style_specs is None:
+        return None
+    return {key: SeriesStyle(**value) for key, value in style_specs.items()}
+
+
+def _build_line_spec(line_spec: dict[str, Any] | None) -> LineSpec | None:
+    """Build a LineSpec from a plain dictionary."""
+    if line_spec is None:
+        return None
+    return LineSpec(
+        vertical=[ReferenceLineSpec(**item) for item in line_spec.get("vertical", [])],
+        horizontal=[ReferenceLineSpec(**item) for item in line_spec.get("horizontal", [])],
+    )
+
+
+def _build_shaded_regions(region_specs: list[dict[str, Any]] | None) -> list[ShadedRegionSpec] | None:
+    """Build ShadedRegionSpec objects from plain dictionaries."""
+    if region_specs is None:
+        return None
+    return [ShadedRegionSpec(**item) for item in region_specs]
+
+
+def _build_significance_brackets(bracket_specs: list[dict[str, Any]] | None) -> list[SignificanceBracketSpec] | None:
+    """Build SignificanceBracketSpec objects from plain dictionaries."""
+    if bracket_specs is None:
+        return None
+    return [SignificanceBracketSpec(**item) for item in bracket_specs]
+
+
+def _build_colorbar_config(colorbar_spec: dict[str, Any] | None) -> ColorbarConfig | None:
+    """Build a ColorbarConfig from a plain dictionary."""
+    if colorbar_spec is None:
+        return None
+    return ColorbarConfig(**colorbar_spec)
+
+
+def _tuple_or_none(value: Any) -> Any:
+    """Convert JSON lists to tuples where plotting functions expect tuples."""
+    if value is None:
+        return None
+    return tuple(value)
+
+
+def _array_mapping(value: dict[str, Any] | None) -> dict[str, np.ndarray] | None:
+    """Convert a mapping of JSON arrays to NumPy arrays."""
+    if value is None:
+        return None
+    return {key: np.asarray(items) for key, items in value.items()}
+
+
+def _ci_mapping(value: dict[str, Any] | None) -> dict[str, tuple[np.ndarray, np.ndarray]] | None:
+    """Convert confidence interval JSON arrays to NumPy array tuples."""
+    if value is None:
+        return None
+    return {key: (np.asarray(bounds[0]), np.asarray(bounds[1])) for key, bounds in value.items()}
+
+
+def _reduce_function(name: str) -> Any:
+    """Map JSON-safe reducer names to NumPy callables."""
+    reducers = {"mean": np.mean, "sum": np.sum, "min": np.min, "max": np.max, "median": np.median}
+    if name not in reducers:
+        raise ValueError(f"Unsupported reduce_function '{name}'. Supported values: {sorted(reducers)}")
+    return reducers[name]
+
+
+def _option(spec: dict[str, Any], key: str, default: Any) -> Any:
+    """Read a plot-specific field with fallback to deprecated options."""
+    if key in spec:
+        return spec[key]
+    return spec.get("options", {}).get(key, default)
 
 
 def _resolve_data(data_spec: dict[str, Any], dataframes: dict[str, Any] | None) -> dict[str, Any]:

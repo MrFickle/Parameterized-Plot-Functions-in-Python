@@ -46,11 +46,20 @@ Project dependencies are declared in `pyproject.toml`:
 
 - `matplotlib`
 - `numpy`
+- `pydantic`
+- `pyyaml`
 - `seaborn`
 - `scikit-learn`
 
-`requirements.txt` also includes `diptest`, but dip-test logic is currently commented out in
-the refactored histogram implementation.
+Optional extras:
+
+```bash
+pip install -e ".[llm]"   # OpenAI-backed natural-language PlotSpec generation
+pip install -e ".[mcp]"   # MCP server
+pip install -e ".[all]"   # both
+```
+
+`pyproject.toml` is the dependency source of truth.
 
 ## Quick Start
 
@@ -194,9 +203,15 @@ The newer plot types each have their own dedicated example script following the 
 
 ## PlotSpec API For LLMs And Tools
 
-The package also supports structured PlotSpecs for LLM/tool use. A PlotSpec is a
-JSON/YAML-compatible dictionary that describes the plot type, data binding, style, output,
-and annotations without executing arbitrary Python code.
+The package supports structured PlotSpecs for LLM/tool use. A PlotSpec is a
+Pydantic-validated JSON/YAML-compatible dictionary that describes the plot type, data
+binding, style, output, annotations, and plot-specific options without executing arbitrary
+Python code.
+
+Each plot type has a dedicated Pydantic schema. The schema fields map directly to the
+corresponding plotting function arguments, so optional controls such as KDE overlays,
+reference lines, ticks, limits, labels, colorbars, regression options, and annotations are
+available through JSON as well as through Python.
 
 ```python
 from parameterized_plot_functions import render_plot
@@ -228,7 +243,9 @@ Useful API functions:
 | Function | Purpose |
 | --- | --- |
 | `list_plot_types` | List PlotSpec-supported plot types |
-| `get_plot_schema` | Return schema-like guidance for a plot type |
+| `get_plot_schema` | Return JSON Schema for a plot type |
+| `get_all_plot_schemas` | Return JSON Schemas for all plot types |
+| `parse_plot_spec` | Validate and return a plot-specific Pydantic model |
 | `validate_plot_spec` | Validate and normalize a PlotSpec dictionary |
 | `render_plot` | Render a PlotSpec dictionary |
 | `render_plot_file` | Render a JSON/YAML PlotSpec file |
@@ -271,6 +288,7 @@ After installation, use the `ppf` command:
 ```bash
 ppf list-plots
 ppf schema scatter
+ppf schema --all
 ppf validate Examples/specs/line_inline.json
 ppf render Examples/specs/scatter_csv.json
 ```
@@ -281,18 +299,69 @@ The same commands can also be run as a module:
 python -m parameterized_plot_functions.cli list-plots
 ```
 
-## MCP-Ready Adapter
+## MCP Server
 
-The package includes `parameterized_plot_functions.mcp_adapter` with dependency-free
-functions that map directly to likely MCP tools:
+Install the MCP extra:
 
-- `mcp_list_plot_types`
-- `mcp_get_plot_schema`
-- `mcp_validate_plot_spec`
-- `mcp_render_plot`
+```bash
+pip install -e ".[mcp]"
+```
 
-This adapter intentionally avoids a hard MCP runtime dependency. A real MCP server can wrap
-these functions without changing the PlotSpec/rendering core.
+Run the server:
+
+```bash
+ppf-mcp
+```
+
+The MCP server exposes:
+
+- `list_plot_types`
+- `get_plot_schema`
+- `validate_plot_spec`
+- `render_plot`
+
+The package also keeps `parameterized_plot_functions.mcp_adapter` as a dependency-light
+wrapper layer for tests or custom MCP server integrations.
+
+## Natural-Language Plotting
+
+Install the LLM extra:
+
+```bash
+pip install -e ".[llm]"
+```
+
+Configure OpenAI through environment variables:
+
+```bash
+set OPENAI_API_KEY=...
+set PPF_LLM_MODEL=gpt-4.1-mini
+set PPF_LLM_CACHE_DIR=.ppf_cache
+```
+
+Or pass an explicit config:
+
+```python
+import parameterized_plot_functions as ppf
+
+config = ppf.LLMPlotConfig(
+    provider="openai",
+    model="gpt-4.1-mini",
+    api_key="...",
+    cache_dir=".ppf_cache",
+)
+
+result = ppf.plot_from_instructions(
+    data=rows_or_dataframe,
+    instructions="Plot x against y, fit a regression line, and add useful labels.",
+    plot_type="scatter",
+    config=config,
+)
+```
+
+The first call generates a PlotSpec and stores it in the cache. Later calls with the same
+instructions, data profile, model, schema version, and plot type reuse the cached PlotSpec
+and do not call the LLM. Pass `rerun_every_time=True` to regenerate the PlotSpec.
 
 ## Extended Parameterization
 

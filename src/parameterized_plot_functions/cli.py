@@ -7,7 +7,7 @@ import json
 from typing import Any
 
 from .render import load_plot_spec_file, render_plot_file
-from .specs import get_plot_schema, list_plot_types, validate_plot_spec
+from .specs import get_all_plot_schemas, get_plot_schema, list_plot_types, validate_plot_spec
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -28,9 +28,10 @@ def main(argv: list[str] | None = None) -> int:
     # Register `list-plots`.
     subparsers.add_parser("list-plots", help="List supported PlotSpec plot types.")
 
-    # Register `schema <plot_type>`.
-    schema_parser = subparsers.add_parser("schema", help="Print schema-like information for a plot type.")
-    schema_parser.add_argument("plot_type", help="Supported plot type name.")
+    # Register `schema [plot_type]`.
+    schema_parser = subparsers.add_parser("schema", help="Print JSON Schema information for one plot type or all plot types.")
+    schema_parser.add_argument("plot_type", nargs="?", help="Supported plot type name. Omit with --all.")
+    schema_parser.add_argument("--all", action="store_true", help="Print schemas for every supported plot type.")
 
     # Register `validate <spec_file>`.
     validate_parser = subparsers.add_parser("validate", help="Validate a JSON/YAML PlotSpec file.")
@@ -48,6 +49,12 @@ def main(argv: list[str] | None = None) -> int:
         _print_json(list_plot_types())
         return 0
     if args.command == "schema":
+        if args.all:
+            _print_json(get_all_plot_schemas())
+            return 0
+        if args.plot_type is None:
+            parser.error("schema requires a plot_type unless --all is provided.")
+            return 2
         _print_json(get_plot_schema(args.plot_type))
         return 0
     if args.command == "validate":

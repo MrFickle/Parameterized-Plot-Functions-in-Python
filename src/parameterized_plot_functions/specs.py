@@ -1,10 +1,12 @@
-"""Structured PlotSpec validation and schema helpers."""
+"""Pydantic PlotSpec models, validation, and schema helpers."""
 
 from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
+
+from pydantic import BaseModel, ConfigDict, Field, RootModel, ValidationError, field_validator, model_validator
 
 
 SUPPORTED_PLOT_TYPES = [
@@ -12,6 +14,7 @@ SUPPORTED_PLOT_TYPES = [
     "scatter",
     "histogram",
     "bar",
+    "dual_axis_bar",
     "grouped_bar",
     "stacked_bar",
     "heatmap",
@@ -24,6 +27,557 @@ SUPPORTED_PLOT_TYPES = [
     "contour",
     "timeline",
 ]
+
+PlotType = Literal[
+    "line",
+    "scatter",
+    "histogram",
+    "bar",
+    "dual_axis_bar",
+    "grouped_bar",
+    "stacked_bar",
+    "heatmap",
+    "correlation_heatmap",
+    "box",
+    "violin",
+    "pie",
+    "area",
+    "hexbin",
+    "contour",
+    "timeline",
+]
+
+
+class StrictModel(BaseModel):
+    """Base model that rejects misspelled fields in PlotSpec dictionaries."""
+
+    model_config = ConfigDict(extra="forbid")
+
+
+class TextStyleSpec(StrictModel):
+    """Pydantic equivalent of `TextStyle`."""
+
+    fontsize: int = 14
+    color: str = "black"
+    bold: bool = False
+    rotation: float = 0.0
+
+
+class AnnotationSpecModel(StrictModel):
+    """Pydantic equivalent of `AnnotationSpec`."""
+
+    text: str
+    xy: tuple[float, float] = (0.05, 0.95)
+    xycoords: str = "axes fraction"
+    style: TextStyleSpec = Field(default_factory=TextStyleSpec)
+
+
+class ReferenceLineSpecModel(StrictModel):
+    """Pydantic equivalent of `ReferenceLineSpec`."""
+
+    value: float
+    color: str = "black"
+    linestyle: str = "--"
+    linewidth: float = 1.5
+    alpha: float = 1.0
+
+
+class LineSpecModel(StrictModel):
+    """Pydantic equivalent of `LineSpec`."""
+
+    vertical: list[ReferenceLineSpecModel] = Field(default_factory=list)
+    horizontal: list[ReferenceLineSpecModel] = Field(default_factory=list)
+
+
+class ShadedRegionSpecModel(StrictModel):
+    """Pydantic equivalent of `ShadedRegionSpec`."""
+
+    xmin: float
+    xmax: float
+    color: str = "gray"
+    alpha: float = 0.2
+    label: str | None = None
+
+
+class SignificanceBracketSpecModel(StrictModel):
+    """Pydantic equivalent of `SignificanceBracketSpec`."""
+
+    x1: float
+    x2: float
+    y: float
+    text: str
+    height: float = 0.05
+    color: str = "black"
+    linewidth: float = 1.5
+    fontsize: int = 12
+
+
+class AxisStyleSpec(StrictModel):
+    """Pydantic equivalent of `AxisStyle`."""
+
+    xlabel_size: int = 18
+    ylabel_size: int = 18
+    xtick_size: int = 14
+    ytick_size: int = 14
+    tick_width: float = 2.0
+    tick_length: float = 6.0
+    spine_width: float = 1.5
+    pad_labels: float = 8.0
+    pad_ticks: float = 6.0
+    use_log_x: bool = False
+    use_log_y: bool = False
+    remove_first_xtick: bool = False
+    remove_first_ytick: bool = False
+    disable_xtick_marks: bool = False
+    disable_ytick_marks: bool = False
+
+
+class FigureStyleSpec(StrictModel):
+    """Pydantic equivalent of `FigureStyle`."""
+
+    figure_size: tuple[float, float] = (10, 8)
+    title_size: int = 18
+    title_weight: str = "bold"
+    tight_layout_pad: float = 0.5
+    show_figure: bool = False
+    use_seaborn: bool = True
+    seaborn_style: str = "ticks"
+    seaborn_font_scale: float = 1.5
+    theme: Literal["default", "publication", "presentation", "minimal", "dark", "paper_bw"] = "default"
+
+
+class LegendStyleSpec(StrictModel):
+    """Pydantic equivalent of `LegendStyle`."""
+
+    enabled: bool = True
+    loc: str = "best"
+    ncol: int = 1
+    frameon: bool = False
+    fontsize: int = 14
+    handletextpad: float = 0.8
+    handlelength: float = 1.5
+    bbox_to_anchor: tuple[float, float] | None = None
+    labelcolor: str | None = None
+
+
+class SeriesStyleSpec(StrictModel):
+    """Pydantic equivalent of `SeriesStyle`."""
+
+    color: str = "blue"
+    label: str | None = None
+    linewidth: float = 2.0
+    linestyle: str = "-"
+    marker: str | None = None
+    markersize: float = 6.0
+    alpha: float = 1.0
+    edgecolor: str | None = None
+    align: str = "center"
+    m_size_factor: float = 1.0
+
+
+class ColorbarConfigSpec(StrictModel):
+    """Pydantic equivalent of `ColorbarConfig`."""
+
+    enabled: bool = False
+    colormap: str = "viridis"
+    label: str | None = None
+    location: str = "right"
+    ticks: list[float] | None = None
+    tick_labels: list[str] | None = None
+    orientation: str = "vertical"
+
+
+class OutputSpec(StrictModel):
+    """Output configuration used by PlotSpec rendering."""
+
+    output_dir: str = "plot_outputs"
+    filename: str | None = None
+    formats: list[Literal["png", "svg", "pdf"]] = Field(default_factory=lambda: ["png", "svg"])
+    dpi: int = 300
+    transparent: bool = False
+    save_metadata: bool = True
+
+
+class InlineDataSpec(RootModel[dict[str, Any]]):
+    """Inline plot data payload."""
+
+
+class CsvDataSpec(StrictModel):
+    """CSV-backed data payload."""
+
+    path: str
+    mappings: dict[str, Any]
+
+    @field_validator("path")
+    @classmethod
+    def validate_existing_path(cls, value: str) -> str:
+        """
+        Function purpose:
+            Validate that a referenced CSV path exists.
+
+        Args:
+            value: Candidate CSV path.
+
+        Outputs:
+            Validated CSV path.
+        """
+        if not Path(value).exists():
+            raise ValueError(f"CSV file does not exist: {value}")
+        return value
+
+
+class DataFrameDataSpec(StrictModel):
+    """DataFrame-backed data payload for Python callers."""
+
+    name: str
+    mappings: dict[str, Any]
+
+
+class PlotDataSpec(StrictModel):
+    """Data payload container supporting inline, CSV, and DataFrame modes."""
+
+    inline: dict[str, Any] | None = None
+    csv: CsvDataSpec | None = None
+    dataframe: DataFrameDataSpec | None = None
+
+    @model_validator(mode="after")
+    def validate_single_data_mode(self) -> PlotDataSpec:
+        """
+        Function purpose:
+            Validate that exactly one data source mode is provided.
+
+        Args:
+            None.
+
+        Outputs:
+            The validated data payload.
+        """
+        provided = [self.inline is not None, self.csv is not None, self.dataframe is not None]
+        if sum(provided) != 1:
+            raise ValueError("PlotSpec data must contain exactly one of: inline, csv, dataframe.")
+        return self
+
+
+class CommonPlotSpec(StrictModel):
+    """Common fields available to every plot-specific PlotSpec."""
+
+    plot_type: PlotType
+    title: str
+    data: PlotDataSpec
+    xlabel: str = ""
+    ylabel: str = ""
+    axis: AxisStyleSpec = Field(default_factory=AxisStyleSpec)
+    style: FigureStyleSpec = Field(default_factory=FigureStyleSpec)
+    legend: LegendStyleSpec = Field(default_factory=LegendStyleSpec)
+    output: OutputSpec = Field(default_factory=OutputSpec)
+    annotations: list[AnnotationSpecModel] = Field(default_factory=list)
+    series_styles: dict[str, SeriesStyleSpec] | None = None
+    line_spec: LineSpecModel | None = None
+    options: dict[str, Any] = Field(default_factory=dict, description="Deprecated compatibility field. Prefer plot-specific top-level fields.")
+
+
+class LinePlotSpec(CommonPlotSpec):
+    """PlotSpec for `plot_line`."""
+
+    plot_type: Literal["line"]
+    yerr_series: dict[str, list[float]] | None = None
+    ci_series: dict[str, tuple[list[float], list[float]]] | None = None
+    use_fill_between: bool = True
+    step_where: str | None = None
+    rolling_window: int | None = None
+    xlims: tuple[float, float] | None = None
+    ylims: tuple[float, float] | None = None
+    xticks: list[float] | None = None
+    yticks: list[float] | None = None
+    xtick_labels: list[str] | None = None
+    ytick_labels: list[str] | None = None
+    shaded_regions: list[ShadedRegionSpecModel] | None = None
+    endpoint_labels: bool = False
+    use_mask: bool = True
+    errorbar_capsize: float = 4
+    errorbar_elinewidth: float = 2
+    errorbar_capthick: float = 2
+    use_line_color_for_error: bool = False
+    rotate_xticks: bool = False
+    plot_minor_ticks: bool = False
+    extend_y_one_tick: bool = False
+
+
+class ScatterPlotSpec(CommonPlotSpec):
+    """PlotSpec for `plot_scatter`."""
+
+    plot_type: Literal["scatter"]
+    xlims: tuple[float, float] | None = None
+    ylims: tuple[float, float] | None = None
+    xticks: list[float] | None = None
+    yticks: list[float] | None = None
+    xtick_labels: list[str] | None = None
+    ytick_labels: list[str] | None = None
+    do_linear_reg_fit: bool = False
+    plot_r2_score: bool = False
+    polynomial_degree: int | None = None
+    regression_confidence_band: bool = False
+    point_labels: dict[str, list[str]] | None = None
+    jitter: float = 0.0
+    size_values: dict[str, list[float]] | None = None
+    colorbar_config: ColorbarConfigSpec | None = None
+    color_values: dict[str, list[float]] | None = None
+
+
+class HistogramPlotSpec(CommonPlotSpec):
+    """PlotSpec for `plot_histogram`."""
+
+    plot_type: Literal["histogram"]
+    bins: Any = 20
+    hist_stat: str = "probability"
+    plot_kde: bool = False
+    plot_mean: bool = False
+    plot_std: bool = False
+    cumulative: bool = False
+    fitted_distribution: str | None = None
+    percentile_markers: list[float] | None = None
+    perform_dip_test: bool = False
+    vertical_lines: list[float] | None = None
+    xlims: tuple[float, float] | None = None
+    ylims: tuple[float, float] | None = None
+    xticks: list[float] | None = None
+    yticks: list[float] | None = None
+    xtick_labels: list[str] | None = None
+    ytick_labels: list[str] | None = None
+    extend_y_one_tick: bool = False
+
+
+class BarPlotSpec(CommonPlotSpec):
+    """PlotSpec for `plot_bar`."""
+
+    plot_type: Literal["bar"]
+    x_positions: dict[str, float] | None = None
+    bar_widths: dict[str, float] | None = None
+    sem_values: dict[str, float] | None = None
+    xticks: list[float] | None = None
+    yticks: list[float] | None = None
+    xtick_labels: list[str] | None = None
+    ytick_labels: list[str] | None = None
+    xlims: tuple[float, float] | None = None
+    ylims: tuple[float, float] | None = None
+    edgecolor: dict[str, str] | str | None = None
+    horizontal: bool = False
+    sort_values: bool = False
+    value_labels: bool = False
+    significance_brackets: list[SignificanceBracketSpecModel] | None = None
+    rotate_xticks: bool = False
+    plot_minor_ticks: bool = False
+    extend_y_one_tick: bool = False
+
+
+class DualAxisBarPlotSpec(BarPlotSpec):
+    """PlotSpec for `plot_dual_axis_bar`."""
+
+    plot_type: Literal["dual_axis_bar"]
+    ylabel_left: str = ""
+    ylabel_right: str = ""
+    axis_assignment: dict[str, Literal["left", "right"]] | None = None
+    yticks_left: list[float] | None = None
+    yticks_right: list[float] | None = None
+    ylims_left: tuple[float, float] | None = None
+    ylims_right: tuple[float, float] | None = None
+
+
+class GroupedBarPlotSpec(CommonPlotSpec):
+    """PlotSpec for `plot_grouped_bar`."""
+
+    plot_type: Literal["grouped_bar"]
+    value_labels: bool = False
+    group_gap: float = 1.0
+    bar_width: float = 0.8
+
+
+class StackedBarPlotSpec(CommonPlotSpec):
+    """PlotSpec for `plot_stacked_bar`."""
+
+    plot_type: Literal["stacked_bar"]
+    normalize: bool = False
+    value_labels: bool = False
+
+
+class HeatmapPlotSpec(CommonPlotSpec):
+    """PlotSpec for `plot_heatmap`."""
+
+    plot_type: Literal["heatmap"]
+    annotate: bool = True
+    colorbar: bool = False
+    vmin: float | None = None
+    vmax: float | None = None
+    cmap: str = "rocket"
+    rotate_ticks: bool = False
+    xtick_labels: list[str] | None = None
+    ytick_labels: list[str] | None = None
+    triangular_mask: Literal["upper", "lower"] | None = None
+    center: float | None = None
+    normalize: Literal["row", "column", "global"] | None = None
+    auto_text_contrast: bool = False
+
+
+class CorrelationHeatmapPlotSpec(CommonPlotSpec):
+    """PlotSpec for `plot_correlation_heatmap`."""
+
+    plot_type: Literal["correlation_heatmap"]
+    labels: list[str] | None = None
+    annotate: bool = True
+    colorbar: bool = True
+    triangular_mask: Literal["upper", "lower"] | None = "upper"
+    cmap: str = "vlag"
+
+
+class BoxPlotSpec(CommonPlotSpec):
+    """PlotSpec for `plot_box`."""
+
+    plot_type: Literal["box"]
+    show_means: bool = False
+    notch: bool = False
+    show_outliers: bool = True
+    orientation: Literal["vertical", "horizontal"] = "vertical"
+    positions: list[float] | None = None
+    tick_labels: list[str] | None = None
+    widths: float | list[float] = 0.5
+    box_alpha: float | None = None
+    mean_marker: str = "^"
+    median_color: str = "black"
+    grid_axis: Literal["x", "y", "both", "none"] = "none"
+    xlims: tuple[float, float] | None = None
+    ylims: tuple[float, float] | None = None
+
+
+class ViolinPlotSpec(CommonPlotSpec):
+    """PlotSpec for `plot_violin`."""
+
+    plot_type: Literal["violin"]
+    show_means: bool = False
+    show_extrema: bool = True
+    show_medians: bool = True
+    orientation: Literal["vertical", "horizontal"] = "vertical"
+    positions: list[float] | None = None
+    tick_labels: list[str] | None = None
+    widths: float = 0.5
+    violin_alpha: float | None = None
+    quantiles: list[list[float]] | None = None
+    grid_axis: Literal["x", "y", "both", "none"] = "none"
+    xlims: tuple[float, float] | None = None
+    ylims: tuple[float, float] | None = None
+
+
+class PiePlotSpec(CommonPlotSpec):
+    """PlotSpec for `plot_pie`."""
+
+    plot_type: Literal["pie"]
+    autopct: str | None = "%1.1f%%"
+    startangle: float = 90
+    donut_width: float | None = None
+    explode: list[float] | None = None
+    shadow: bool = False
+    labeldistance: float = 1.1
+    pctdistance: float = 0.6
+    counterclock: bool = True
+    normalize: bool = True
+    textprops: dict[str, Any] | None = None
+    wedgeprops: dict[str, Any] | None = None
+    show_legend: bool = False
+    legend_loc: str = "best"
+
+
+class AreaPlotSpec(CommonPlotSpec):
+    """PlotSpec for `plot_area`."""
+
+    plot_type: Literal["area"]
+    stacked: bool = False
+    baseline: float = 0.0
+    fill_alpha: float | None = None
+    xlims: tuple[float, float] | None = None
+    ylims: tuple[float, float] | None = None
+    xticks: list[float] | None = None
+    yticks: list[float] | None = None
+    xtick_labels: list[str] | None = None
+    ytick_labels: list[str] | None = None
+    shaded_regions: list[ShadedRegionSpecModel] | None = None
+
+
+class HexbinPlotSpec(CommonPlotSpec):
+    """PlotSpec for `plot_hexbin`."""
+
+    plot_type: Literal["hexbin"]
+    gridsize: int = 30
+    cmap: str = "viridis"
+    mincnt: int | None = 1
+    colorbar: bool = True
+    reduce_function: str = "mean"
+    values: list[float] | None = None
+    xlims: tuple[float, float] | None = None
+    ylims: tuple[float, float] | None = None
+    xticks: list[float] | None = None
+    yticks: list[float] | None = None
+    xtick_labels: list[str] | None = None
+    ytick_labels: list[str] | None = None
+    colorbar_label: str | None = None
+    extent: tuple[float, float, float, float] | None = None
+    bins: str | None = None
+    linewidths: float = 0.0
+    alpha: float = 1.0
+
+
+class ContourPlotSpec(CommonPlotSpec):
+    """PlotSpec for `plot_contour`."""
+
+    plot_type: Literal["contour"]
+    levels: int | list[float] = 10
+    filled: bool = True
+    cmap: str = "viridis"
+    colorbar: bool = True
+    label_contours: bool = False
+    xlims: tuple[float, float] | None = None
+    ylims: tuple[float, float] | None = None
+    xticks: list[float] | None = None
+    yticks: list[float] | None = None
+    xtick_labels: list[str] | None = None
+    ytick_labels: list[str] | None = None
+    colorbar_label: str | None = None
+    linewidths: float = 1.5
+    alpha: float = 1.0
+    vmin: float | None = None
+    vmax: float | None = None
+
+
+class TimelinePlotSpec(CommonPlotSpec):
+    """PlotSpec for `plot_timeline`."""
+
+    plot_type: Literal["timeline"]
+    labels: dict[str, list[str]] | None = None
+    lane_labels: list[str] | None = None
+    marker_size: float = 80.0
+    draw_lane_lines: bool = True
+    label_offset: float = 0.08
+    xlims: tuple[float, float] | None = None
+    xticks: list[float] | None = None
+    xtick_labels: list[str] | None = None
+
+
+PLOT_SPEC_MODELS: dict[str, type[CommonPlotSpec]] = {
+    "line": LinePlotSpec,
+    "scatter": ScatterPlotSpec,
+    "histogram": HistogramPlotSpec,
+    "bar": BarPlotSpec,
+    "dual_axis_bar": DualAxisBarPlotSpec,
+    "grouped_bar": GroupedBarPlotSpec,
+    "stacked_bar": StackedBarPlotSpec,
+    "heatmap": HeatmapPlotSpec,
+    "correlation_heatmap": CorrelationHeatmapPlotSpec,
+    "box": BoxPlotSpec,
+    "violin": ViolinPlotSpec,
+    "pie": PiePlotSpec,
+    "area": AreaPlotSpec,
+    "hexbin": HexbinPlotSpec,
+    "contour": ContourPlotSpec,
+    "timeline": TimelinePlotSpec,
+}
 
 
 @dataclass
@@ -64,7 +618,6 @@ class RenderResult:
         Outputs:
             Dictionary representation of the render result.
         """
-        # Return only plain Python containers for CLI and MCP adapter output.
         return {
             "plot_type": self.plot_type,
             "figure_path": self.figure_path,
@@ -87,131 +640,80 @@ def list_plot_types() -> list[str]:
     Outputs:
         List of supported plot type names.
     """
-    # Return a copy so callers cannot mutate the module-level registry.
     return list(SUPPORTED_PLOT_TYPES)
 
 
-def get_plot_schema(plot_type: str) -> dict[str, Any]:
+def parse_plot_spec(spec: dict[str, Any] | CommonPlotSpec) -> CommonPlotSpec:
     """
     Function purpose:
-        Return a compact schema-like description for one supported plot type.
+        Validate a dictionary or return an existing Pydantic PlotSpec model.
 
     Args:
-        plot_type: Plot type to describe.
+        spec: Candidate PlotSpec dictionary or Pydantic model.
 
     Outputs:
-        Dictionary describing required fields and accepted data mappings.
+        Validated plot-specific Pydantic model.
     """
-    # Validate the requested plot type before returning a schema.
-    if plot_type not in SUPPORTED_PLOT_TYPES:
-        raise ValueError(f"Unsupported plot_type '{plot_type}'. Supported types: {SUPPORTED_PLOT_TYPES}")
-
-    # Describe common fields shared across all PlotSpecs.
-    base_schema: dict[str, Any] = {
-        "required": ["plot_type", "title", "data"],
-        "common_optional": ["xlabel", "ylabel", "style", "legend", "output", "annotations"],
-        "data_modes": ["inline", "csv", "dataframe"],
-        "output": {
-            "output_dir": "Directory for generated files.",
-            "filename": "Base filename without extension.",
-            "formats": ["png", "svg", "pdf"],
-        },
-    }
-
-    # Define concise data expectations per plot family.
-    data_schemas: dict[str, dict[str, Any]] = {
-        "line": {"inline": {"series": [{"name": "str", "x": ["number"], "y": ["number"]}]}, "mapping": {"x": "column", "y": "column", "group": "optional column"}},
-        "scatter": {"inline": {"series": [{"name": "str", "x": ["number"], "y": ["number"]}]}, "mapping": {"x": "column", "y": "column", "group": "optional column"}},
-        "area": {"inline": {"x": ["number"], "series": [{"name": "str", "y": ["number"]}]}, "mapping": {"x": "column", "y": "column", "group": "optional column"}},
-        "histogram": {"inline": {"series": [{"name": "str", "values": ["number"]}]}, "mapping": {"values": "column", "group": "optional column"}},
-        "box": {"inline": {"series": [{"name": "str", "values": ["number"]}]}, "mapping": {"values": "column", "group": "column"}},
-        "violin": {"inline": {"series": [{"name": "str", "values": ["number"]}]}, "mapping": {"values": "column", "group": "column"}},
-        "bar": {"inline": {"values": {"label": "number"}}, "mapping": {"label": "column", "value": "column"}},
-        "pie": {"inline": {"values": {"label": "number"}}, "mapping": {"label": "column", "value": "column"}},
-        "grouped_bar": {"inline": {"values": {"category": {"series": "number"}}}, "mapping": {"category": "column", "series": "column", "value": "column"}},
-        "stacked_bar": {"inline": {"values": {"category": {"series": "number"}}}, "mapping": {"category": "column", "series": "column", "value": "column"}},
-        "heatmap": {"inline": {"matrix": [["number"]]}, "mapping": {"columns": ["numeric columns"]}},
-        "correlation_heatmap": {"inline": {"matrix": [["number"]]}, "mapping": {"columns": ["numeric columns"]}},
-        "hexbin": {"inline": {"x": ["number"], "y": ["number"]}, "mapping": {"x": "column", "y": "column"}},
-        "contour": {"inline": {"x": [["number"]], "y": [["number"]], "z": [["number"]]}, "mapping": "inline grid recommended"},
-        "timeline": {"inline": {"events": {"lane": ["number"]}}, "mapping": {"lane": "column", "time": "column", "label": "optional column"}},
-    }
-
-    # Attach the plot-specific data shape to the common schema.
-    base_schema["data"] = data_schemas[plot_type]
-    return base_schema
+    if isinstance(spec, CommonPlotSpec):
+        return spec
+    if not isinstance(spec, dict):
+        raise ValueError("PlotSpec must be a dictionary or PlotSpec model.")
+    plot_type = spec.get("plot_type")
+    if plot_type not in PLOT_SPEC_MODELS:
+        raise ValueError(f"PlotSpec field 'plot_type' must be one of {SUPPORTED_PLOT_TYPES}.")
+    try:
+        return PLOT_SPEC_MODELS[plot_type].model_validate(spec)
+    except ValidationError as exc:
+        raise ValueError(str(exc)) from exc
 
 
-def validate_plot_spec(spec: dict[str, Any]) -> dict[str, Any]:
+def validate_plot_spec(spec: dict[str, Any] | CommonPlotSpec) -> dict[str, Any]:
     """
     Function purpose:
         Validate and normalize a PlotSpec dictionary.
 
     Args:
-        spec: Candidate PlotSpec dictionary.
+        spec: Candidate PlotSpec dictionary or Pydantic model.
 
     Outputs:
         Normalized PlotSpec dictionary.
     """
-    # Ensure the top-level object is a mapping.
-    if not isinstance(spec, dict):
-        raise ValueError("PlotSpec must be a dictionary.")
+    return parse_plot_spec(spec).model_dump(mode="json", exclude_none=True)
 
-    # Validate required top-level fields.
-    plot_type = spec.get("plot_type")
-    if plot_type not in SUPPORTED_PLOT_TYPES:
-        raise ValueError(f"PlotSpec field 'plot_type' must be one of {SUPPORTED_PLOT_TYPES}.")
-    if not spec.get("title"):
-        raise ValueError("PlotSpec field 'title' is required.")
-    if "data" not in spec:
-        raise ValueError("PlotSpec field 'data' is required.")
-    if not isinstance(spec["data"], dict):
-        raise ValueError("PlotSpec field 'data' must be a dictionary.")
 
-    # Copy the spec so downstream code can add defaults without mutating caller input.
-    normalized = dict(spec)
+def get_plot_schema(plot_type: str) -> dict[str, Any]:
+    """
+    Function purpose:
+        Return JSON Schema for one supported plot type.
 
-    # Fill common optional text defaults.
-    normalized.setdefault("xlabel", "")
-    normalized.setdefault("ylabel", "")
-    normalized.setdefault("style", {})
-    normalized.setdefault("legend", {})
-    normalized.setdefault("output", {})
-    normalized.setdefault("options", {})
-    normalized.setdefault("annotations", [])
+    Args:
+        plot_type: Plot type to describe.
 
-    # Validate output formats when present.
-    output = normalized["output"]
-    if not isinstance(output, dict):
-        raise ValueError("PlotSpec field 'output' must be a dictionary when provided.")
-    formats = output.get("formats", ["png", "svg"])
-    if not isinstance(formats, list):
-        raise ValueError("PlotSpec output.formats must be a list.")
-    unsupported_formats = [fmt for fmt in formats if fmt not in {"png", "svg", "pdf"}]
-    if unsupported_formats:
-        raise ValueError(f"Unsupported output formats: {unsupported_formats}.")
+    Outputs:
+        Dictionary containing JSON Schema and LLM-oriented metadata.
+    """
+    if plot_type not in PLOT_SPEC_MODELS:
+        raise ValueError(f"Unsupported plot_type '{plot_type}'. Supported types: {SUPPORTED_PLOT_TYPES}")
+    schema = PLOT_SPEC_MODELS[plot_type].model_json_schema()
+    schema["data_modes"] = ["inline", "csv", "dataframe"]
+    schema["llm_notes"] = [
+        "Return JSON only when generating a PlotSpec.",
+        "Use csv mode for local tabular files and provide explicit column mappings.",
+        "Use inline mode for small arrays, matrices, scalar mappings, or examples.",
+        "All optional fields map directly to the corresponding plotting function arguments.",
+    ]
+    return schema
 
-    # Validate CSV references early enough to produce clear user-facing errors.
-    data = normalized["data"]
-    if "csv" in data:
-        csv_info = data["csv"]
-        if not isinstance(csv_info, dict):
-            raise ValueError("PlotSpec data.csv must be a dictionary.")
-        if not csv_info.get("path"):
-            raise ValueError("PlotSpec data.csv.path is required.")
-        if not Path(csv_info["path"]).exists():
-            raise ValueError(f"CSV file does not exist: {csv_info['path']}")
-        if not isinstance(csv_info.get("mappings"), dict):
-            raise ValueError("PlotSpec data.csv.mappings must be provided as a dictionary.")
 
-    # Validate DataFrame references for Python callers.
-    if "dataframe" in data:
-        dataframe_info = data["dataframe"]
-        if not isinstance(dataframe_info, dict):
-            raise ValueError("PlotSpec data.dataframe must be a dictionary.")
-        if not dataframe_info.get("name"):
-            raise ValueError("PlotSpec data.dataframe.name is required.")
-        if not isinstance(dataframe_info.get("mappings"), dict):
-            raise ValueError("PlotSpec data.dataframe.mappings must be provided as a dictionary.")
+def get_all_plot_schemas() -> dict[str, Any]:
+    """
+    Function purpose:
+        Return JSON Schemas for every supported plot type.
 
-    return normalized
+    Args:
+        None.
+
+    Outputs:
+        Mapping from plot type to JSON Schema.
+    """
+    return {plot_type: get_plot_schema(plot_type) for plot_type in SUPPORTED_PLOT_TYPES}
