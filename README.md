@@ -192,6 +192,108 @@ passes their returned figures into `draw_figures_grid`.
 The newer plot types each have their own dedicated example script following the same
 `create_*_figure` plus `main()` pattern as the original examples.
 
+## PlotSpec API For LLMs And Tools
+
+The package also supports structured PlotSpecs for LLM/tool use. A PlotSpec is a
+JSON/YAML-compatible dictionary that describes the plot type, data binding, style, output,
+and annotations without executing arbitrary Python code.
+
+```python
+from parameterized_plot_functions import render_plot
+
+result = render_plot(
+    {
+        "plot_type": "line",
+        "title": "Inline Line Plot",
+        "xlabel": "x",
+        "ylabel": "y",
+        "data": {
+            "inline": {
+                "series": [
+                    {"name": "linear", "x": [0, 1, 2], "y": [0, 1, 2]}
+                ]
+            }
+        },
+        "output": {
+            "output_dir": "showcase_outputs/specs",
+            "filename": "line_spec",
+            "formats": ["png", "svg"],
+        },
+    }
+)
+```
+
+Useful API functions:
+
+| Function | Purpose |
+| --- | --- |
+| `list_plot_types` | List PlotSpec-supported plot types |
+| `get_plot_schema` | Return schema-like guidance for a plot type |
+| `validate_plot_spec` | Validate and normalize a PlotSpec dictionary |
+| `render_plot` | Render a PlotSpec dictionary |
+| `render_plot_file` | Render a JSON/YAML PlotSpec file |
+| `load_plot_spec_file` | Load JSON/YAML spec files |
+
+Supported data modes:
+
+- `inline`: arrays or matrices are embedded directly in the spec.
+- `csv`: the spec references a CSV path and explicit column mappings.
+- `dataframe`: Python callers pass named DataFrame-like objects to `render_plot`.
+
+CSV example:
+
+```json
+{
+  "plot_type": "scatter",
+  "title": "CSV Scatter",
+  "xlabel": "x",
+  "ylabel": "y",
+  "data": {
+    "csv": {
+      "path": "Examples/specs/scatter_data.csv",
+      "mappings": {"x": "x", "y": "y", "group": "group"}
+    }
+  },
+  "output": {
+    "output_dir": "showcase_outputs/specs",
+    "filename": "scatter_csv_spec",
+    "formats": ["png", "svg"]
+  }
+}
+```
+
+Example specs live in `Examples/specs/`.
+
+## CLI
+
+After installation, use the `ppf` command:
+
+```bash
+ppf list-plots
+ppf schema scatter
+ppf validate Examples/specs/line_inline.json
+ppf render Examples/specs/scatter_csv.json
+```
+
+The same commands can also be run as a module:
+
+```bash
+python -m parameterized_plot_functions.cli list-plots
+```
+
+## MCP-Ready Adapter
+
+The package includes `parameterized_plot_functions.mcp_adapter` with dependency-free
+functions that map directly to likely MCP tools:
+
+- `mcp_list_plot_types`
+- `mcp_get_plot_schema`
+- `mcp_validate_plot_spec`
+- `mcp_render_plot`
+
+This adapter intentionally avoids a hard MCP runtime dependency. A real MCP server can wrap
+these functions without changing the PlotSpec/rendering core.
+
 ## Extended Parameterization
 
 Newer plot families expose the same style/config pattern as the original plots:

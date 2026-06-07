@@ -1,0 +1,49 @@
+{
+  "plot_type": "line",
+  "title": "Inline Line PlotSpec Example",
+  "xlabel": "x",
+  "ylabel": "y",
+  "data": {
+    "inline": {
+      "series": [
+        {
+          "name": "linear",
+          "x": [0, 1, 2, 3, 4],
+          "y": [0, 1, 2, 3, 4]
+        },
+        {
+          "name": "quadratic",
+          "x": [0, 1, 2, 3, 4],
+          "y": [0, 1, 4, 9, 16]
+        }
+      ]
+    }
+  },
+  "style": {
+    "theme": "publication",
+    "figure_size": [9, 6],
+    "title_size": 20
+  },
+  "legend": {
+    "enabled": true,
+    "loc": "upper left",
+    "frameon": true
+  },
+  "annotations": [
+    {
+      "text": "Structured PlotSpec",
+      "xy": [0.05, 0.9],
+      "xycoords": "axes fraction",
+      "style": {
+        "fontsize": 12,
+        "bold": true
+      }
+    }
+  ],
+  "output": {
+    "output_dir": "showcase_outputs/specs",
+    "filename": "line_inline_spec",
+    "formats": ["png", "svg"],
+    "save_metadata": true
+  }
+}

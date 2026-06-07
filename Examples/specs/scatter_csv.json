@@ -1,0 +1,30 @@
+{
+  "plot_type": "scatter",
+  "title": "CSV Scatter PlotSpec Example",
+  "xlabel": "x",
+  "ylabel": "y",
+  "data": {
+    "csv": {
+      "path": "Examples/specs/scatter_data.csv",
+      "mappings": {
+        "x": "x",
+        "y": "y",
+        "group": "group"
+      }
+    }
+  },
+  "style": {
+    "theme": "publication",
+    "figure_size": [9, 6]
+  },
+  "legend": {
+    "enabled": true,
+    "loc": "upper left"
+  },
+  "output": {
+    "output_dir": "showcase_outputs/specs",
+    "filename": "scatter_csv_spec",
+    "formats": ["png", "svg"],
+    "save_metadata": true
+  }
+}

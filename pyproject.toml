@@ -15,5 +15,8 @@ dependencies = [
     "seaborn>=0.13.0",
 ]
 
+[project.scripts]
+ppf = "parameterized_plot_functions.cli:main"
+
 [tool.setuptools.packages.find]
 where = ["src"]

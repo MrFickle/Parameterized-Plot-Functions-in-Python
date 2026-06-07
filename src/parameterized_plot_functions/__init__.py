@@ -31,6 +31,8 @@ from .plots.pie import plot_pie
 from .plots.area import plot_area
 from .plots.density import plot_contour, plot_hexbin
 from .plots.timeline import plot_timeline
+from .render import load_plot_spec_file, render_plot, render_plot_file
+from .specs import RenderResult, get_plot_schema, list_plot_types, validate_plot_spec
 
 __all__ = [
     "AnnotationSpec",
@@ -64,4 +66,11 @@ __all__ = [
     "plot_contour",
     "plot_hexbin",
     "plot_timeline",
+    "RenderResult",
+    "get_plot_schema",
+    "list_plot_types",
+    "load_plot_spec_file",
+    "render_plot",
+    "render_plot_file",
+    "validate_plot_spec",
 ]
